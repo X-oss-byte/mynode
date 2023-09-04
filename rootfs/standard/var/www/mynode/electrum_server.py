@@ -21,7 +21,7 @@ def electrum_server_page():
 
     # Get latest info
     current_block = get_electrum_server_current_block()
-    if current_block == None:
+    if current_block is None:
         current_block = "Unknown"
     status = get_electrs_status()
     db_size = get_electrs_db_size( is_testnet_enabled() )
@@ -32,11 +32,11 @@ def electrum_server_page():
     server_secure_port = "50002"
 
     # Get IP URLs
-    electrs_command = "./electrum -1 -s {}:50002:s".format(server_ip)
+    electrs_command = f"./electrum -1 -s {server_ip}:50002:s"
 
     # Get Onion URLs
     electrs_onion_hostname = get_onion_url_electrs()
-    electrs_onion_command = "./electrum -1 -s {}:50002:s -p socks5:localhost:9050".format(electrs_onion_hostname)
+    electrs_onion_command = f"./electrum -1 -s {electrs_onion_hostname}:50002:s -p socks5:localhost:9050"
 
 
     # Load page

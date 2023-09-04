@@ -41,7 +41,7 @@ def get_image_contents(filename):
     return "ERROR"
 
 def get_image_src_b64(filename):
-    return "data:image/png;base64," + get_image_contents(filename)
+    return f"data:image/png;base64,{get_image_contents(filename)}"
 
 # Flask Pages
 @mynode_lnd.route("/lnd")
@@ -49,7 +49,6 @@ def page_lnd():
     check_logged_in()
 
     height = 0
-    refresh_rate = 3600
     alias = get_lnd_alias_file_data()
     num_peers = "0"
     num_active_channels = "TODO"
@@ -106,7 +105,7 @@ def page_lnd():
         data = get_lightning_info()
 
         # If lightning data is still None, show message
-        if data == None:
+        if data is None:
             templateData = {
                 "title": "myNode Lightning Wallet",
                 "wallet_exists": wallet_exists,
@@ -153,7 +152,7 @@ def page_lnd():
             channel_balance = channel_balance_data["balance"]
         if channel_balance_data != None and "pending_open_balance" in channel_balance_data:
             channel_pending = channel_balance_data["pending_open_balance"]
-        
+
         wallet_balance_data = get_lightning_wallet_balance()
         if wallet_balance_data != None and "confirmed_balance" in wallet_balance_data:
             wallet_balance = wallet_balance_data["confirmed_balance"]
@@ -177,9 +176,7 @@ def page_lnd():
         }
         return render_template('error.html', **templateData)
 
-    if not is_lnd_ready():
-        refresh_rate = 15
-
+    refresh_rate = 15 if not is_lnd_ready() else 3600
     templateData = {
         "title": "myNode Lightning Status",
         "is_community_edition": is_community_edition(),
@@ -241,12 +238,12 @@ def lnd_tls_cert():
 def lnd_download_macaroon(name):
     check_logged_in()
 
-    folder = "mainnet"
-    if is_testnet_enabled():
-        folder = "testnet"
-
+    folder = "testnet" if is_testnet_enabled() else "mainnet"
     # Download macaroon
-    return download_file(directory="/mnt/hdd/mynode/lnd/data/chain/bitcoin/{}/".format(folder), filename="{}.macaroon".format(name))
+    return download_file(
+        directory=f"/mnt/hdd/mynode/lnd/data/chain/bitcoin/{folder}/",
+        filename=f"{name}.macaroon",
+    )
 
 @mynode_lnd.route("/lnd/channel.backup")
 def lnd_channel_backup():
@@ -255,7 +252,7 @@ def lnd_channel_backup():
     scb_location = get_lnd_channel_backup_file()
     parts = os.path.split(scb_location)
 
-    return download_file(directory=parts[0]+"/", filename=parts[1])
+    return download_file(directory=f"{parts[0]}/", filename=parts[1])
 
 @mynode_lnd.route("/lnd/create_wallet")
 def page_lnd_create_wallet():
@@ -298,7 +295,7 @@ def page_lnd_create_wallet_with_seed():
 
     # Check for channel backup
     channel_backup_filename = "/tmp/lnd_channel_backup"
-    os.system("rm -f " + channel_backup_filename)
+    os.system(f"rm -f {channel_backup_filename}")
 
     if 'channel_backup' in request.files and request.files['channel_backup'] != "":
         f = request.files['channel_backup']
@@ -308,7 +305,7 @@ def page_lnd_create_wallet_with_seed():
     if create_wallet(seed):
         flash("Wallet Created!", category="message")
         return redirect(url_for(".page_lnd"))
-    
+
     # Error creating wallet
     flash("Error Creating Wallet!", category="error")
     return redirect(url_for(".page_lnd"))
@@ -345,9 +342,14 @@ def page_lnd_create_wallet_confirm():
 
 
 def create_pair(name, image_src, text, premium):
-    pair = {}
-    pair["name"] = name
-    pair["id"] = name.replace(" ","").replace("+","").replace("(","").replace(")","").lower()
+    pair = {
+        "name": name,
+        "id": name.replace(" ", "")
+        .replace("+", "")
+        .replace("(", "")
+        .replace(")", "")
+        .lower(),
+    }
     pair["image_src"] = image_src.strip()
     pair["text"] = text.strip()
     pair["premium"] = premium
@@ -367,14 +369,14 @@ def page_lnd_pair_wallet():
     p = pam.pam()
     pw = request.form.get('password_pair_wallet')
     from_homepage = request.form.get('pair_wallet_from_homepage')
-    if pw == None or p.authenticate("admin", pw) == False:
-        if from_homepage != None:
-            flash("Invalid Password", category="error")
-            return redirect("/")
-        else:
+    if pw is None or p.authenticate("admin", pw) == False:
+        if from_homepage is None:
             flash("Invalid Password", category="error")
             return redirect(url_for(".page_lnd"))
 
+        else:
+            flash("Invalid Password", category="error")
+            return redirect("/")
     # Lndconnect Data
     lndconnect_local_grpc_text = get_text_contents("/tmp/mynode_lndconnect/lndconnect_local_grpc.txt")
     lndconnect_local_rest_text = get_text_contents("/tmp/mynode_lndconnect/lndconnect_local_rest.txt")
@@ -397,19 +399,37 @@ def page_lnd_pair_wallet():
 
     #Electrum QR:
     #bluewallet:setelectrumserver?server=v7gtzf7nua6hdmb2wtqaqioqmesdb4xrlly4zwr7bvayxv2bpg665pqd.onion%3A50001%3At
-    bluewallet_lndhub_local_text = "bluewallet:setlndhuburl?url=http://"+local_ip+":3000"
-    bluewallet_lndhub_local_img = "/api/get_qr_code_image?url="+quote_plus(bluewallet_lndhub_local_text)
-    bluewallet_lndhub_tor_text = "bluewallet:setlndhuburl?url=http://"+lndhub_onion_url+":3000"
-    bluewallet_lndhub_tor_img = "/api/get_qr_code_image?url="+quote_plus(bluewallet_lndhub_tor_text)
-    bluewallet_electrs_local_text = "bluewallet:setelectrumserver?server="+local_ip+":50002:s"
-    bluewallet_electrs_local_img = "/api/get_qr_code_image?url="+quote_plus(bluewallet_electrs_local_text)
-    bluewallet_electrs_tor_text = "bluewallet:setelectrumserver?server="+electrs_onion_url+":50001:t"     # Use non-SSL for Tor (scans in Bluewallet better)
-    bluewallet_electrs_tor_img = "/api/get_qr_code_image?url="+quote_plus(bluewallet_electrs_tor_text)
+    bluewallet_lndhub_local_text = (
+        f"bluewallet:setlndhuburl?url=http://{local_ip}:3000"
+    )
+    bluewallet_lndhub_local_img = f"/api/get_qr_code_image?url={quote_plus(bluewallet_lndhub_local_text)}"
+    bluewallet_lndhub_tor_text = (
+        f"bluewallet:setlndhuburl?url=http://{lndhub_onion_url}:3000"
+    )
+    bluewallet_lndhub_tor_img = (
+        f"/api/get_qr_code_image?url={quote_plus(bluewallet_lndhub_tor_text)}"
+    )
+    bluewallet_electrs_local_text = (
+        f"bluewallet:setelectrumserver?server={local_ip}:50002:s"
+    )
+    bluewallet_electrs_local_img = f"/api/get_qr_code_image?url={quote_plus(bluewallet_electrs_local_text)}"
+    bluewallet_electrs_tor_text = (
+        f"bluewallet:setelectrumserver?server={electrs_onion_url}:50001:t"
+    )
+    bluewallet_electrs_tor_img = (
+        f"/api/get_qr_code_image?url={quote_plus(bluewallet_electrs_tor_text)}"
+    )
 
 
     # Pairing options
-    pairs = []
-    pairs.append( create_pair(name="Lightning (gRPC + Local IP)", image_src=lndconnect_local_grpc_img,text=lndconnect_local_grpc_text,premium=False) )
+    pairs = [
+        create_pair(
+            name="Lightning (gRPC + Local IP)",
+            image_src=lndconnect_local_grpc_img,
+            text=lndconnect_local_grpc_text,
+            premium=False,
+        )
+    ]
     pairs.append( create_pair(name="Lightning (gRPC + Tor)", image_src=lndconnect_tor_grpc_img,text=lndconnect_tor_grpc_text,premium=True) )
     pairs.append( create_pair(name="Lightning (REST + Local IP)", image_src=lndconnect_local_rest_img,text=lndconnect_local_rest_text,premium=False) )
     pairs.append( create_pair(name="Lightning (REST + Tor)", image_src=lndconnect_tor_rest_img,text=lndconnect_tor_rest_text,premium=True) )
@@ -437,7 +457,7 @@ def page_lnd_change_alias():
 
     # Change alias
     alias = request.form.get('alias')
-    if alias == None or alias == "":
+    if alias is None or alias == "":
         flash("Empty Alias", category="error")
         return redirect(url_for(".page_lnd"))
     if len(alias) > 34:
@@ -568,9 +588,9 @@ def page_lnd_watchtower_add_tower():
     check_logged_in()
 
     if request.form.get("new_tower"):
-        cmd = "lncli wtclient add {}".format(request.form.get("new_tower"))
+        cmd = f'lncli wtclient add {request.form.get("new_tower")}'
         r = run_lncli_command(cmd)
-        if r == None:
+        if r is None:
             flash("Error adding tower!", category="error")
             return redirect(url_for(".page_lnd_watchtower"))
     else:
@@ -588,9 +608,9 @@ def page_lnd_watchtower_remove_tower():
     check_logged_in()
 
     if request.args.get("tower"):
-        cmd = "lncli wtclient remove {}".format(request.args.get("tower"))
+        cmd = f'lncli wtclient remove {request.args.get("tower")}'
         r = run_lncli_command(cmd)
-        if r == None:
+        if r is None:
             flash("Error removing tower!", category="error")
             return redirect(url_for(".page_lnd_watchtower"))
     else:
@@ -610,5 +630,4 @@ def page_lnd_watchtower_remove_tower():
 def lnd_api_get_new_lnd_deposit_address_page():
     check_logged_in()
 
-    address = get_new_lnd_deposit_address()
-    return address
+    return get_new_lnd_deposit_address()

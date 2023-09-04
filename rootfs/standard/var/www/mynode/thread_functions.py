@@ -59,9 +59,8 @@ def update_device_info():
         cpu_usage = "{:.1f}%".format(100.0 - cpu_info.idle)
 
         # Update every 24 hrs
-        if device_info_call_count % 60*24 == 0:
-            os_drive_usage_details = ""
-            os_drive_usage_details += "<small>"
+        if device_info_call_count % 60 == 0:
+            os_drive_usage_details = "" + "<small>"
             os_drive_usage_details += "<b>App Storage</b><br/>"
             os_drive_usage_details += "<pre>" + run_linux_cmd("du -h -d1 /opt/mynode/", ignore_failure=True) + "</pre><br/>"
             os_drive_usage_details += "<b>User Storage</b><br/>"
@@ -73,16 +72,15 @@ def update_device_info():
                 os_drive_usage_details += "<pre>" + run_linux_cmd("du -h -d1 /home/admin/.cargo/", ignore_failure=True) + "</pre><br/>"
             os_drive_usage_details += "</small>"
 
-            data_drive_usage_details = ""
-            data_drive_usage_details += "<small>"
+            data_drive_usage_details = "" + "<small>"
             data_drive_usage_details += "<b>Disk Format</b>"
-            data_drive_usage_details += "<p>" + get_current_drive_filesystem_type() + "</p>"
+            data_drive_usage_details += f"<p>{get_current_drive_filesystem_type()}</p>"
             data_drive_usage_details += "<b>Data Storage</b><br/>"
             data_drive_usage_details += "<pre>" + run_linux_cmd("du -h -d1 /mnt/hdd/mynode/", ignore_failure=True) + "</pre><br/>"
             data_drive_usage_details += "</small>"
 
     except Exception as e:
-        log_message("CAUGHT update_device_info EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_device_info EXCEPTION: {str(e)}")
 
     device_info_call_count = device_info_call_count + 1
 
@@ -122,7 +120,7 @@ def update_bitcoin_main_info_thread():
                 time.sleep(10)
 
     except Exception as e:
-        log_message("CAUGHT update_bitcoin_main_info_thread EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_bitcoin_main_info_thread EXCEPTION: {str(e)}")
 
 
 # Updates other bitcoin info every 60 seconds
@@ -131,7 +129,7 @@ def update_bitcoin_other_info_thread():
         # Get bitcoin info
         update_bitcoin_other_info()
     except Exception as e:
-        log_message("CAUGHT update_bitcoin_other_info_thread EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_bitcoin_other_info_thread EXCEPTION: {str(e)}")
 
 
 # Updates electrs info every 60 seconds
@@ -140,7 +138,7 @@ def update_electrs_info_thread():
         if is_service_enabled("electrs"):
             update_electrs_info()
     except Exception as e:
-        log_message("CAUGHT update_electrs_info_thread EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_electrs_info_thread EXCEPTION: {str(e)}")
 
 
 # Updates LND info every 60 seconds
@@ -149,7 +147,7 @@ def update_lnd_info_thread():
         # Get LND info
         update_lightning_info()
     except Exception as e:
-        log_message("CAUGHT update_lnd_info_thread EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_lnd_info_thread EXCEPTION: {str(e)}")
 
 
 # Updates price info every 5 minutes
@@ -158,7 +156,7 @@ def update_price_info_thread():
         # Get Price Info
         update_price_info()
     except Exception as e:
-        log_message("CAUGHT update_price_info_thread EXCEPTION: " + str(e))
+        log_message(f"CAUGHT update_price_info_thread EXCEPTION: {str(e)}")
 
 
 # Check every 3 hours
@@ -177,14 +175,12 @@ def find_public_ip():
 
 
 def dmesg_log_clear():
-    f = open("/tmp/dmesg", "w")
-    f.write("")
-    f.close()
+    with open("/tmp/dmesg", "w") as f:
+        f.write("")
 def dmesg_log(msg):
     print(msg)
-    f = open("/tmp/dmesg", "a")
-    f.write(msg)
-    f.close()
+    with open("/tmp/dmesg", "a") as f:
+        f.write(msg)
 
 # This will monitor dmesg for system errors or issues
 def monitor_dmesg():
@@ -211,9 +207,6 @@ def monitor_dmesg():
                 if get_cached_data("dmesg_io_error_count") >= 100:
                     set_usb_error()
                 dmesg_log(l)
-            else:
-                #dmesg_log(l)
-                pass
         except Exception as e:
-            dmesg_log("dmesg exception: "+str(e))
+            dmesg_log(f"dmesg exception: {str(e)}")
     

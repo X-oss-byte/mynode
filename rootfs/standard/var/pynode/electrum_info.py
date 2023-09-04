@@ -26,11 +26,8 @@ def update_electrs_info():
         prom_data = text_string_to_metric_families(raw_data.text)
         for family in prom_data:
             for sample in family.samples:
-                if sample.name == "electrs_index_height":
+                if sample.name in ["electrs_index_height", "index_height"]:
                     electrum_server_current_block = int(sample.value)
-                elif sample.name == "index_height":
-                    electrum_server_current_block = int(sample.value)
-
         bitcoin_block_height = get_bitcoin_block_height()
         if electrum_server_current_block != None and bitcoin_block_height != None:
             if electrum_server_current_block > bitcoin_block_height - 2:
@@ -41,15 +38,13 @@ def update_electrs_info():
 
 def get_electrs_version():
     global electrs_version
-    if electrs_version == None:
+    if electrs_version is None:
         electrs_version = to_string(subprocess.check_output("electrs --version", shell=True))
-    return "{}".format(electrs_version)
+    return f"{electrs_version}"
 
 def is_electrs_active():
     global electrs_active
-    if not is_service_enabled("electrs"):
-        return False
-    return electrs_active
+    return False if not is_service_enabled("electrs") else electrs_active
 
 def get_electrs_status():
     global electrum_server_current_block
@@ -78,11 +73,8 @@ def get_electrs_status():
             return "Getting headers..."
         elif "starting full compaction" in line:
             return "Compressing..."
-        elif "enabling auto-compactions" in line:
-            break
         elif "RPC server running on" in line:
             break
-        # Electrs v9+
         elif "stopping Electrum RPC server" in line or "notified via SIG15" in line:
             return "Stopping..."
         elif "serving Electrum RPC on 0.0.0.0:50001" in line:
@@ -114,7 +106,12 @@ def get_electrs_db_size(is_testnet=False):
         folder = "/mnt/hdd/mynode/electrs/bitcoin"
         if is_testnet:
             folder = "/mnt/hdd/mynode/electrs/testnet"
-        size = to_string(subprocess.check_output("du -h "+folder+" | head -n1 | awk '{print $1;}'", shell=True))
+        size = to_string(
+            subprocess.check_output(
+                f"du -h {folder}" + " | head -n1 | awk '{print $1;}'",
+                shell=True,
+            )
+        )
     except Exception as e:
         size = "Error"
     return size

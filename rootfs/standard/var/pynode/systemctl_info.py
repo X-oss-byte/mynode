@@ -17,7 +17,7 @@ def is_service_enabled(service_name, force_refresh=False):
     if service_name in service_enabled_cache and force_refresh == False:
         return service_enabled_cache[service_name]
 
-    code = os.system("systemctl is-enabled {} > /dev/null 2>&1".format(service_name))
+    code = os.system(f"systemctl is-enabled {service_name} > /dev/null 2>&1")
     if code == 0:
         service_enabled_cache[service_name] = True
         return True
@@ -25,30 +25,36 @@ def is_service_enabled(service_name, force_refresh=False):
     return False
 
 def get_service_status_code(service_name):
-    code = os.system("systemctl status {} --no-pager > /dev/null 2>&1".format(service_name))
-    return code
+    return os.system(
+        f"systemctl status {service_name} --no-pager > /dev/null 2>&1"
+    )
 
 def get_service_status_basic_text(service_name):
     if not is_service_enabled(service_name):
         return "Disabled"
 
-    code = os.system("systemctl status {} --no-pager  > /dev/null 2>&1".format(service_name))
-    if code == 0:
-        return "Running"
-    return "Error"
+    code = os.system(
+        f"systemctl status {service_name} --no-pager  > /dev/null 2>&1"
+    )
+    return "Running" if code == 0 else "Error"
 
 def get_service_status_color(service_name):
     if not is_service_enabled(service_name):
         return "gray"
 
-    code = os.system("systemctl status {} --no-pager > /dev/null 2>&1".format(service_name))
-    if code == 0:
-        return "green"
-    return "red"
+    code = os.system(
+        f"systemctl status {service_name} --no-pager > /dev/null 2>&1"
+    )
+    return "green" if code == 0 else "red"
 
 def get_journalctl_log(service_name):
     try:
-        log = to_string(subprocess.check_output("journalctl -r --unit={} --no-pager | head -n 300".format(service_name), shell=True).decode("utf8"))
+        log = to_string(
+            subprocess.check_output(
+                f"journalctl -r --unit={service_name} --no-pager | head -n 300",
+                shell=True,
+            ).decode("utf8")
+        )
     except:
         log = "ERROR"
     return log

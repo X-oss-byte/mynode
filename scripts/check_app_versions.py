@@ -51,9 +51,7 @@ def needs_update(current, latest):
     # Remove "v" since some variables are inconsistent in v1.2.3 vs 1.2.3
     c = current.replace("v","")
     l = latest.replace("v","")
-    if c != l:
-        return "X"
-    return ""
+    return "X" if c != l else ""
 
 def get_current_version_from_variable(version_variable):
     try:
@@ -63,15 +61,14 @@ def get_current_version_from_variable(version_variable):
                 if version_variable in line:
                     parts = line.split("=")
                     version = parts[1]
-                    version = version.replace("\"","").strip()
-                    return version
+                    return version.replace("\"","").strip()
     except:
         return "UNKNOWN FAIL"
-    return "UNKNOWN " + version_variable
+    return f"UNKNOWN {version_variable}"
 
 def get_current_version_from_dynamic_app(app_name):
     try:
-        filename = "../rootfs/standard/usr/share/mynode_apps/{}/{}.json".format(app_name, app_name)
+        filename = f"../rootfs/standard/usr/share/mynode_apps/{app_name}/{app_name}.json"
         with open(filename, "r") as f:
             json_data = json.load(f)
             if "latest_version" in json_data:
@@ -82,8 +79,8 @@ def get_current_version_from_dynamic_app(app_name):
 
 def get_app_version_data(app_name, current_version):
     success = False
-    github_url = "https://api.github.com/repos/" + app_name + "/releases/latest"
-    github_tag_url = "https://api.github.com/repos/" + app_name + "/tags"
+    github_url = f"https://api.github.com/repos/{app_name}/releases/latest"
+    github_tag_url = f"https://api.github.com/repos/{app_name}/tags"
     row=[app_name, current_version, "FAILED", "?"]
 
     # Try GitHub Releases
@@ -96,7 +93,7 @@ def get_app_version_data(app_name, current_version):
         success = True
     except:
         pass
-    
+
     # Try GitHub Tags
     if not success:
         try:
@@ -114,7 +111,7 @@ def get_app_version_data(app_name, current_version):
     # Try Samourai Whirlpool CLI
     if (not success and ("whirlpool" in app_name or "dojo" in app_name)):
         try:
-            samourai_url = "https://code.samourai.io/"+app_name+"/-/tags?format=atom"
+            samourai_url = f"https://code.samourai.io/{app_name}/-/tags?format=atom"
             r = requests.get(samourai_url)
             matches = re.search( r'/-/tags/(.*?)</id>', str(r.content), re.M)
             latest_version = matches.group(1)

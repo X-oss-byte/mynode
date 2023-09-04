@@ -32,11 +32,9 @@ def bitcoin_status_page():
         version = get_bitcoin_version()
         rpc_password = get_bitcoin_rpc_password()
 
-        # Whitepaper
-        bitcoin_whitepaper_exists = False
-        if os.path.isfile("/mnt/hdd/mynode/bitcoin/bitcoin_whitepaper.pdf"):
-            bitcoin_whitepaper_exists = True
-
+        bitcoin_whitepaper_exists = bool(
+            os.path.isfile("/mnt/hdd/mynode/bitcoin/bitcoin_whitepaper.pdf")
+        )
         # Mempool info
         mempool = get_bitcoin_mempool_info()
 
@@ -46,31 +44,35 @@ def bitcoin_status_page():
             for b in blockdata:
                 block = b
                 minutes = int(time.time() - int(b["time"])) / 60
-                block["age"] = "{} minutes".format( int(minutes) )
+                block["age"] = f"{int(minutes)} minutes"
                 block["size"] = int(b["size"] / 1000)
                 blocks.append(block)
             blocks.reverse()
-            #blocks = blocks[:5] # Take top 5
+                    #blocks = blocks[:5] # Take top 5
 
         # Peers
         peers = peerdata
 
-        # Bitcoin address
-        addresses = ["..."]
-        if networkdata != None:
-            addresses = ["no local addresses"]
-            if ("localaddresses" in networkdata) and (len(networkdata["localaddresses"]) > 0):
-                addresses = []
-                for addr in networkdata["localaddresses"]:
-                    addresses.append("{}:{}".format(addr["address"], addr["port"]))
-
-
+        if networkdata is None:
+            addresses = ["..."]
+        else:
+            addresses = (
+                [
+                    f'{addr["address"]}:{addr["port"]}'
+                    for addr in networkdata["localaddresses"]
+                ]
+                if ("localaddresses" in networkdata)
+                and (len(networkdata["localaddresses"]) > 0)
+                else ["no local addresses"]
+            )
     except Exception as e:
         templateData = {
             "title": "myNode Bitcoin Error",
             "header": "Bitcoin Status",
-            "message": Markup("Error communicating with bitcoin. Node may be busy syncing.<br/><br/>{}".format(str(e))),
-            "ui_settings": read_ui_settings()
+            "message": Markup(
+                f"Error communicating with bitcoin. Node may be busy syncing.<br/><br/>{str(e)}"
+            ),
+            "ui_settings": read_ui_settings(),
         }
         return render_template('error.html', **templateData)
 
@@ -108,9 +110,11 @@ def bitcoin_download_wallet():
 
     os.system("mkdir -p /tmp/download_wallets")
     os.system("chmod 777 /tmp/download_wallets")
-    run_bitcoincli_command("-rpcwallet='"+wallet_name+"' dumpwallet '/tmp/download_wallets/"+wallet_name+"'")
+    run_bitcoincli_command(
+        f"-rpcwallet='{wallet_name}' dumpwallet '/tmp/download_wallets/{wallet_name}'"
+    )
 
-    if not os.path.isfile("/tmp/download_wallets/"+wallet_name):
+    if not os.path.isfile(f"/tmp/download_wallets/{wallet_name}"):
         flash("Error exporting wallet data for download", category="error")
         return redirect("/bitcoin")
 
@@ -127,8 +131,8 @@ def bitcoin_delete_wallet():
         flash("Error finding wallet to delete!", category="error")
         return redirect("/bitcoin")
 
-    run_bitcoincli_command("unloadwallet {}".format(wallet_name))
-    run_linux_cmd("rm -rf /mnt/hdd/mynode/bitcoin/{}".format(wallet_name))
+    run_bitcoincli_command(f"unloadwallet {wallet_name}")
+    run_linux_cmd(f"rm -rf /mnt/hdd/mynode/bitcoin/{wallet_name}")
 
     # Update wallet info
     update_bitcoin_other_info()
@@ -213,11 +217,8 @@ def bitcoincli():
 @mynode_bitcoin.route("/bitcoin/cli-run", methods=['POST'])
 def runcmd_page():
     check_logged_in()
-    
-    if not request:
-        return ""
-    response = run_bitcoincli_command(request.form['cmd'])
-    return response
+
+    return "" if not request else run_bitcoincli_command(request.form['cmd'])
 
 @mynode_bitcoin.route("/bitcoin/toggle_bip37")
 def bitcoin_toggle_bip37():

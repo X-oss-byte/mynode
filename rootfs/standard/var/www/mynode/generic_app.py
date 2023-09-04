@@ -16,7 +16,7 @@ def app_generic_info_page(name):
     check_logged_in()
 
     app = get_application(name)
-    if not is_application_valid(name) or app == None:
+    if not is_application_valid(name) or app is None:
         flash("Application is invalid", category="error")
         return redirect("/apps")
 

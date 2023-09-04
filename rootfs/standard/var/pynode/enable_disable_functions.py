@@ -6,19 +6,19 @@ from systemctl_info import *
 
 # Generic Enable / Disable Function
 def enable_service(short_name):
-    os.system("systemctl enable {} --no-pager".format(short_name))
-    os.system("systemctl start {} --no-pager".format(short_name))
-    open("/mnt/hdd/mynode/settings/{}_enabled".format(short_name), 'a').close() # touch file
+    os.system(f"systemctl enable {short_name} --no-pager")
+    os.system(f"systemctl start {short_name} --no-pager")
+    open(f"/mnt/hdd/mynode/settings/{short_name}_enabled", 'a').close()
     clear_service_enabled_cache()
     enable_actions(short_name)
 
 def disable_service(short_name):
-    enabled_file = "/mnt/hdd/mynode/settings/{}_enabled".format(short_name)
+    enabled_file = f"/mnt/hdd/mynode/settings/{short_name}_enabled"
     if os.path.isfile(enabled_file):
         os.remove(enabled_file)
     disable_actions(short_name)
-    os.system("systemctl stop {} --no-pager".format(short_name))
-    os.system("systemctl disable {} --no-pager".format(short_name))
+    os.system(f"systemctl stop {short_name} --no-pager")
+    os.system(f"systemctl disable {short_name} --no-pager")
     clear_service_enabled_cache()
 
 # Functions to handle special enable/disable cases
@@ -36,9 +36,9 @@ def disable_actions(short_name):
 
 # Function to start/stop/restart service
 def start_service(short_name):
-    os.system("systemctl start {} --no-pager".format(short_name))
+    os.system(f"systemctl start {short_name} --no-pager")
 def stop_service(short_name):
-    os.system("systemctl stop {} --no-pager".format(short_name))
+    os.system(f"systemctl stop {short_name} --no-pager")
 def restart_service(short_name):
-    os.system("systemctl restart {} --no-pager".format(short_name))
+    os.system(f"systemctl restart {short_name} --no-pager")
 

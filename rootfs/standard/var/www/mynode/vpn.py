@@ -23,12 +23,10 @@ def page_vpn_info():
     if is_community_edition():
         return redirect("/")
 
-    # Check if port is forwarded
-    port_forwarded = False
     ip = get_public_ip()
-    if subprocess.call(["nc", "-v", "-u", "-w", "1", ip, "51194"]) == 0:
-        port_forwarded = True
-
+    port_forwarded = (
+        subprocess.call(["nc", "-v", "-u", "-w", "1", ip, "51194"]) == 0
+    )
     # Get status
     status = "Setting up..."
     vpn_file_exists = False
@@ -52,7 +50,7 @@ def page_regen_vpn():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_regen_ovpn')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_vpn_info"))
 
@@ -77,7 +75,7 @@ def page_download_ovpn():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_download_ovpn')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_vpn_info"))
 

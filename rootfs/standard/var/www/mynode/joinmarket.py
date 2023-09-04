@@ -19,8 +19,7 @@ def get_jm_wallets():
             for f in os.listdir(wallet_folder):
                 wallet_path = wallet_folder + f
                 if os.path.isfile( wallet_path ) and not f.startswith("."):
-                    wallet = {}
-                    wallet["name"] = f
+                    wallet = {"name": f}
                     wallets.append(wallet)
     except Exception as e:
         wallets.append({"name": str(e)})
@@ -30,14 +29,13 @@ def get_joinmarket_version():
     version = "not_found"
     package_info_file = "/home/joinmarket/joinmarket-clientserver/jmclient/joinmarketclient.egg-info/PKG-INFO"
     try:
-        if os.path.isfile(package_info_file):
-            with open(package_info_file, 'r') as f:
-                lines = f.readlines()
-                for l in lines:
-                    if "Version: " in l:
-                        version = "v" + l.replace("Version: ", "")
-        else:
+        if not os.path.isfile(package_info_file):
             return "missing_file"
+        with open(package_info_file, 'r') as f:
+            lines = f.readlines()
+            for l in lines:
+                if "Version: " in l:
+                    version = "v" + l.replace("Version: ", "")
     except:
         version = "exception_error"
     return version

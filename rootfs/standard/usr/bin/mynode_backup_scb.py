@@ -42,9 +42,9 @@ def local_backup(original_scb, backup_scb):
         if os.path.isfile(backup_scb):
             md5_2 = get_md5_file_hash(backup_scb)
 
-        log_message("  Hash 1: {}".format(md5_1))
-        log_message("  Hash 2: {}".format(md5_2))
-        
+        log_message(f"  Hash 1: {md5_1}")
+        log_message(f"  Hash 2: {md5_2}")
+
         # If file is missing or different, back it up!
         if md5_1 != md5_2:
             shutil.copyfile(original_scb, backup_scb)
@@ -75,8 +75,8 @@ def remote_backup(original, backup):
 
     md5_1 = get_md5_file_hash(original_scb)
     md5_2 = get_saved_remote_backup_hash()
-    log_message("  Hash 1: {}".format(md5_1))
-    log_message("  Hash 2: {}".format(md5_2))
+    log_message(f"  Hash 1: {md5_1}")
+    log_message(f"  Hash 2: {md5_2}")
     if md5_1 == md5_2:
         log_message("Remote Backup: Hashes Match. Skipping Backup.")
         return
@@ -94,18 +94,18 @@ def remote_backup(original, backup):
     }
 
     response = make_tor_request(BACKUP_SCB_URL, data, file_data)
-    if response == None:
+    if response is None:
         log_message("Premium+ Connect Error: Connection Failed")
         return False
     if response.status_code != 200:
-        log_message("Remote Backup: Connect Failed. Code {}".format(response.status_code))
+        log_message(f"Remote Backup: Connect Failed. Code {response.status_code}")
         return False
     else:
         if response.text == "OK":
-            log_message("Remote Backup: Success ({})".format(response.text))
+            log_message(f"Remote Backup: Success ({response.text})")
             set_saved_remote_backup_hash( md5_1 )
         else:
-            log_message("Remote Backup: Error: ({})".format(response.text))
+            log_message(f"Remote Backup: Error: ({response.text})")
 
     return True
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
             watch_flags = flags.CREATE | flags.DELETE | flags.MODIFY | flags.DELETE_SELF
             wd = inotify.add_watch(original_scb, watch_flags)
             for event in inotify.read(timeout=one_hour_in_ms):
-                log_message("File changed: " + str(event))
+                log_message(f"File changed: {str(event)}")
         except Exception as e:
-            log_message("Error: {}".format(e))
+            log_message(f"Error: {e}")
             time.sleep(60)

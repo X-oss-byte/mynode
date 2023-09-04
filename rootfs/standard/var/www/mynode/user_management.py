@@ -23,31 +23,29 @@ def check_logged_in():
         raise LoginError
 
 def is_logged_in():
-    if "logged_in" in session and session["logged_in"] == True:
-        return True
-    return False
+   return "logged_in" in session and session["logged_in"] == True
 
 def login(password):
-    global login_error_message
+   global login_error_message
 
-    if get_recent_invalid_login_attempts() >= 5:
-        login_error_message = "Too Many Invalid Attempts - Wait 5 minutes"
-        return False
+   if get_recent_invalid_login_attempts() >= 5:
+       login_error_message = "Too Many Invalid Attempts - Wait 5 minutes"
+       return False
 
-    p = pam.pam()
-    if password == None or p.authenticate("admin", password) == False:
-        login_error_message = "Invalid Password"
-        increase_recent_invalid_login_attempts()
-        return False
-    else:
-        # Setup settion info
-        session["logged_in"] = True
-        session.permanent = True
+   p = pam.pam()
+   if password is None or p.authenticate("admin", password) == False:
+      login_error_message = "Invalid Password"
+      increase_recent_invalid_login_attempts()
+      return False
+   else:
+      # Setup settion info
+      session["logged_in"] = True
+      session.permanent = True
 
-        # Call change password to ensure hash files are up to date
-        subprocess.call(['/usr/bin/mynode_chpasswd.sh', password])
+      # Call change password to ensure hash files are up to date
+      subprocess.call(['/usr/bin/mynode_chpasswd.sh', password])
 
-        return True
+      return True
 
 def logout():
     session["logged_in"] = False

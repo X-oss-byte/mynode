@@ -37,18 +37,16 @@ def get_bitcoin_rpc_password():
 
 def get_bitcoin_version():
     global bitcoin_version
-    if bitcoin_version == None:
+    if bitcoin_version is None:
         bitcoin_version = to_string(subprocess.check_output("bitcoind --version | egrep -o 'v[0-9]+\\.[0-9]+\\.[0-9]+'", shell=True))
     return bitcoin_version
 
 def is_bitcoin_synced():
-    if os.path.isfile( BITCOIN_SYNCED_FILE ):
-        return True
-    return False
+    return bool(os.path.isfile( BITCOIN_SYNCED_FILE ))
 
 def run_bitcoincli_command(cmd):
-    cmd = "bitcoin-cli --conf=/mnt/hdd/mynode/bitcoin/bitcoin.conf --datadir=/mnt/hdd/mynode/bitcoin "+cmd+"; exit 0"
-    log_message("Running bitcoin-cli cmd:  {}".format(cmd))
+    cmd = f"bitcoin-cli --conf=/mnt/hdd/mynode/bitcoin/bitcoin.conf --datadir=/mnt/hdd/mynode/bitcoin {cmd}; exit 0"
+    log_message(f"Running bitcoin-cli cmd:  {cmd}")
     try:
         results = to_string(subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True))
     except Exception as e:
@@ -64,7 +62,9 @@ def update_bitcoin_main_info():
         rpc_user = get_bitcoin_rpc_username()
         rpc_pass = get_bitcoin_rpc_password()
 
-        rpc_connection = AuthServiceProxy("http://%s:%s@127.0.0.1:8332"%(rpc_user, rpc_pass), timeout=120)
+        rpc_connection = AuthServiceProxy(
+            f"http://{rpc_user}:{rpc_pass}@127.0.0.1:8332", timeout=120
+        )
 
         # Basic Info
         info = rpc_connection.getblockchaininfo()
@@ -83,7 +83,7 @@ def update_bitcoin_main_info():
         bitcoin_blockchain_info = info
 
     except Exception as e:
-        log_message("ERROR: In update_bitcoin_info - {} DATA: {}".format( str(e), str(info) ))
+        log_message(f"ERROR: In update_bitcoin_info - {str(e)} DATA: {str(info)}")
         return False
 
     update_bitcoin_json_cache()
@@ -100,7 +100,7 @@ def update_bitcoin_other_info():
     global bitcoin_recommended_fees
     global bitcoin_wallets
 
-    while bitcoin_blockchain_info == None:
+    while bitcoin_blockchain_info is None:
         # Wait until we have gotten the important info...
         # Checking quickly helps the API get started faster
         time.sleep(1)
@@ -109,7 +109,9 @@ def update_bitcoin_other_info():
         rpc_user = get_bitcoin_rpc_username()
         rpc_pass = get_bitcoin_rpc_password()
 
-        rpc_connection = AuthServiceProxy("http://%s:%s@127.0.0.1:8332"%(rpc_user, rpc_pass), timeout=60)
+        rpc_connection = AuthServiceProxy(
+            f"http://{rpc_user}:{rpc_pass}@127.0.0.1:8332", timeout=60
+        )
 
         # Get other less important info
         try:
@@ -166,7 +168,10 @@ def update_bitcoin_other_info():
                 else:
                     wallet_name = urllib.pathname2url(w)
 
-                wallet_rpc_connection = AuthServiceProxy("http://%s:%s@127.0.0.1:8332/wallet/%s"%(rpc_user, rpc_pass, wallet_name), timeout=60)
+                wallet_rpc_connection = AuthServiceProxy(
+                    f"http://{rpc_user}:{rpc_pass}@127.0.0.1:8332/wallet/{wallet_name}",
+                    timeout=60,
+                )
                 wallet_info = wallet_rpc_connection.getwalletinfo()
                 wallet_info["can_delete"] = True
                 if wallet_name == "wallet.dat":
@@ -182,20 +187,24 @@ def update_bitcoin_other_info():
                     r = requests.get("http://localhost:4080/api/v1/fees/recommended", timeout=1)
                     data = r.json()
                     bitcoin_recommended_fees = ""
-                    bitcoin_recommended_fees += "Low priority: {} sat/vB".format(data["hourFee"])
+                    bitcoin_recommended_fees += f'Low priority: {data["hourFee"]} sat/vB'
                     bitcoin_recommended_fees += " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "
-                    bitcoin_recommended_fees += "Medium priority: {} sat/vB".format(data["halfHourFee"])
+                    bitcoin_recommended_fees += f'Medium priority: {data["halfHourFee"]} sat/vB'
                     bitcoin_recommended_fees += " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "
-                    bitcoin_recommended_fees += "High priority: {} sat/vB".format(data["fastestFee"])
+                    bitcoin_recommended_fees += f'High priority: {data["fastestFee"]} sat/vB'
                 except Exception as e:
                     bitcoin_recommended_fees = "Fee error - " . str(e)
             else:
                 bitcoin_recommended_fees = None
         except Exception as e1:
-            log_message("ERROR: In update_bitcoin_other_info (1) - {} DATA: {}".format( str(e1), str() ))
+            log_message(
+                f"ERROR: In update_bitcoin_other_info (1) - {str(e1)} DATA: {str()}"
+            )
 
     except Exception as e2:
-        log_message("ERROR: In update_bitcoin_other_info (2) - {} DATA: {}".format( str(e2), str() ))
+        log_message(
+            f"ERROR: In update_bitcoin_other_info (2) - {str(e2)} DATA: {str()}"
+        )
         return False
 
     update_bitcoin_json_cache()
@@ -206,15 +215,14 @@ def get_bitcoin_status():
     block = get_mynode_block_height()
     status = "unknown"
 
-    if height != None and block != None:
-        remaining = height - block
-        if remaining == 0:
-            status = "Running"
-        else:
-            status = "Syncing<br/>{} blocks remaining...".format(remaining)
-    else:
-        status = "Waiting for info..."
-    return status
+    if height is None or block is None:
+        return "Waiting for info..."
+    remaining = height - block
+    return (
+        "Running"
+        if remaining == 0
+        else f"Syncing<br/>{remaining} blocks remaining..."
+    )
 
 def get_bitcoin_blockchain_info():
     global bitcoin_blockchain_info
@@ -222,9 +230,7 @@ def get_bitcoin_blockchain_info():
 
 def get_bitcoin_difficulty():
     info = get_bitcoin_blockchain_info()
-    if "difficulty" in info:
-        return info["difficulty"]
-    return "???"
+    return info["difficulty"] if "difficulty" in info else "???"
 
 def get_bitcoin_block_height():
     global bitcoin_block_height
@@ -235,12 +241,10 @@ def get_mynode_block_height():
     return mynode_block_height
 
 def get_bitcoin_sync_progress():
-    info = get_bitcoin_blockchain_info()
-    progress = "???"
-    if info:
+    if info := get_bitcoin_blockchain_info():
         if "verificationprogress" in info:
             return info["verificationprogress"]
-    return progress
+    return "???"
 
 def get_bitcoin_recent_blocks():
     global bitcoin_recent_blocks
@@ -252,9 +256,7 @@ def get_bitcoin_peers():
 
 def get_bitcoin_peer_count():
     peers = get_bitcoin_peers()
-    if peers != None:
-        return len(peers)
-    return 0
+    return len(peers) if peers != None else 0
 
 def get_bitcoin_network_info():
     global bitcoin_network_info
@@ -267,11 +269,7 @@ def get_bitcoin_mempool():
 def get_bitcoin_mempool_info():
     mempooldata = get_bitcoin_mempool()
 
-    mempool = {}
-    mempool["size"] = "???"
-    mempool["count"] = "???"
-    mempool["bytes"] = "0"
-    mempool["display_bytes"] = "???"
+    mempool = {"size": "???", "count": "???", "bytes": "0", "display_bytes": "???"}
     if mempooldata != None:
         mempool["display_size"] = "unknown"
         if "size" in mempooldata:
@@ -286,11 +284,10 @@ def get_bitcoin_mempool_info():
 
 def get_bitcoin_disk_usage():
     info = get_bitcoin_blockchain_info()
-    if "size_on_disk" in info:
-        usage = int(info["size_on_disk"]) / 1000 / 1000 / 1000
-        return "{:.0f}".format(usage)
-    else:
+    if "size_on_disk" not in info:
         return "UNK"
+    usage = int(info["size_on_disk"]) / 1000 / 1000 / 1000
+    return "{:.0f}".format(usage)
 
 def get_bitcoin_recommended_fees():
     global bitcoin_recommended_fees
@@ -301,20 +298,23 @@ def get_bitcoin_wallets():
     return copy.deepcopy(bitcoin_wallets)
 
 def create_default_wallets():
+    if not is_bitcoin_synced():
+        return
+    wallets = get_bitcoin_wallets()
     default_wallets = ["joinmarket_wallet.dat"]
-    if is_bitcoin_synced():
-        wallets = get_bitcoin_wallets()
-        for new_wallet in default_wallets:
-            found = False
-            for w in wallets:
-                log_message("{} comparing to {}".format(new_wallet, w["walletname"]))
-                if new_wallet == w["walletname"]:
-                    found = True
-                    break
-            if not found:
-                log_message("Creating new default wallet {}".format(new_wallet))
-                run_bitcoincli_command("-named createwallet wallet_name={} descriptors=false".format(new_wallet))
-                run_bitcoincli_command("loadwallet {}".format(new_wallet))
+    for new_wallet in default_wallets:
+        found = False
+        for w in wallets:
+            log_message(f'{new_wallet} comparing to {w["walletname"]}')
+            if new_wallet == w["walletname"]:
+                found = True
+                break
+        if not found:
+            log_message(f"Creating new default wallet {new_wallet}")
+            run_bitcoincli_command(
+                f"-named createwallet wallet_name={new_wallet} descriptors=false"
+            )
+            run_bitcoincli_command(f"loadwallet {new_wallet}")
 
 
 def get_default_bitcoin_config():
@@ -379,27 +379,21 @@ def restart_bitcoin():
     t.start()
 
 def is_bip37_enabled():
-    if os.path.isfile("/mnt/hdd/mynode/settings/.bip37_enabled"):
-        return True
-    return False
+    return bool(os.path.isfile("/mnt/hdd/mynode/settings/.bip37_enabled"))
 def enable_bip37():
     touch("/mnt/hdd/mynode/settings/.bip37_enabled")
 def disable_bip37():
     delete_file("/mnt/hdd/mynode/settings/.bip37_enabled")
 
 def is_bip157_enabled():
-    if os.path.isfile("/mnt/hdd/mynode/settings/.bip157_enabled"):
-        return True
-    return False
+    return bool(os.path.isfile("/mnt/hdd/mynode/settings/.bip157_enabled"))
 def enable_bip157():
     touch("/mnt/hdd/mynode/settings/.bip157_enabled")
 def disable_bip157():
     delete_file("/mnt/hdd/mynode/settings/.bip157_enabled")
 
 def is_bip158_enabled():
-    if os.path.isfile("/mnt/hdd/mynode/settings/.bip158_enabled"):
-        return True
-    return False
+    return bool(os.path.isfile("/mnt/hdd/mynode/settings/.bip158_enabled"))
 def enable_bip158():
     touch("/mnt/hdd/mynode/settings/.bip158_enabled")
 def disable_bip158():
@@ -408,9 +402,10 @@ def disable_bip158():
 
 def update_bitcoin_json_cache():
     global BITCOIN_CACHE_FILE
-    bitcoin_data = {}
-    bitcoin_data["current_block_height"] = mynode_block_height
-    bitcoin_data["blockchain_info"] = get_bitcoin_blockchain_info()
+    bitcoin_data = {
+        "current_block_height": mynode_block_height,
+        "blockchain_info": get_bitcoin_blockchain_info(),
+    }
     #bitcoin_data["recent_blocks"] = bitcoin_recent_blocks
     bitcoin_data["peers"] = get_bitcoin_peers()
     bitcoin_data["network_info"] = get_bitcoin_network_info()

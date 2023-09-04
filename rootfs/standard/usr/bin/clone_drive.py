@@ -13,7 +13,7 @@ log.setLevel(logging.INFO)
 set_logger(log)
 
 def set_clone_state(state):
-    log_message("Clone State: {}".format(state))
+    log_message(f"Clone State: {state}")
     try:
         with open("/tmp/.clone_state", "w") as f:
             f.write(state)
@@ -33,7 +33,7 @@ def reset_clone_rescan():
     os.system("rm /tmp/.clone_rescan")
 
 def set_clone_error(error_msg):
-    log_message("Clone Error: {}".format(error_msg))
+    log_message(f"Clone Error: {error_msg}")
     try:
         with open("/tmp/.clone_error", "w") as f:
             f.write(error_msg)
@@ -68,7 +68,7 @@ def main():
     if drive_count != 2:
         log_message("Clone tool did not find 2 drives!")
         set_clone_state("error")
-        set_clone_error("Clone tool needs 2 drives! Found {}.".format(drive_count))
+        set_clone_error(f"Clone tool needs 2 drives! Found {drive_count}.")
         wait_on_clone_error_dismiss()
         return
 
@@ -82,26 +82,20 @@ def main():
         partitions = find_partitions_for_drive(d)
         log_message(f"Drive {d} paritions: {partitions}")
 
-        if len(partitions) == 0:
-            # No partition found - must be target drive since its empty
-            if target_found:
-                set_clone_state("error")
-                set_clone_error("Two target drives found. Is myNode drive missing?")
-                wait_on_clone_error_dismiss()
-                return
-            else:
-                target_found = True
-                target_drive = d
-        elif len(partitions) > 1:
-            # Multiple partitions found - myNode only uses one, so must be target
-            if target_found:
-                set_clone_state("error")
-                set_clone_error("Two target drives found. Is myNode drive missing?")
-                wait_on_clone_error_dismiss()
-                return
-            else:
-                target_found = True
-                target_drive = d
+        if (
+            len(partitions) == 0
+            and target_found
+            or len(partitions) != 0
+            and len(partitions) > 1
+            and target_found
+        ):
+            set_clone_state("error")
+            set_clone_error("Two target drives found. Is myNode drive missing?")
+            wait_on_clone_error_dismiss()
+            return
+        elif len(partitions) == 0 or len(partitions) > 1:
+            target_found = True
+            target_drive = d
         else:
             for p in partitions:
                 a = round(time.time() * 1000)
@@ -122,15 +116,14 @@ def main():
                         log_message(f"myNode Partition Found: {p}")
                         mynode_drive = d
                         mynode_found = True
+                elif target_found:
+                    set_clone_state("error")
+                    set_clone_error("Two target drives found. Is myNode drive missing?")
+                    wait_on_clone_error_dismiss()
+                    return
                 else:
-                    if target_found:
-                        set_clone_state("error")
-                        set_clone_error("Two target drives found. Is myNode drive missing?")
-                        wait_on_clone_error_dismiss()
-                        return
-                    else:
-                        target_found = True
-                        target_drive = d
+                    target_found = True
+                    target_drive = d
                 b = round(time.time() * 1000)
                 total_time = b - a
                 log_message(f"Checked partition {p} in {total_time}ms")
@@ -152,8 +145,8 @@ def main():
 
     # Setup for clone
     set_clone_state("in_progress")
-    os.system(f"mkdir -p /tmp/drive1")
-    os.system(f"mkdir -p /tmp/drive2")
+    os.system("mkdir -p /tmp/drive1")
+    os.system("mkdir -p /tmp/drive2")
     os.system(f"umount /dev/{mynode_drive}1")
     os.system(f"umount /dev/{target_drive}1")
 
@@ -182,9 +175,9 @@ def main():
     try:
         #cmd = ["dd","bs=64K",f"if=/dev/{mynode_drive}",f"of=/dev/{target_drive}","conv=sync,noerror"]
         #cmd = ["dd","bs=512",f"if=/dev/zero",f"of=/dev/null","count=5999999","conv=sync,noerror"]
-        cmd = ["rsync","-avxHAX","--info=progress2",f"/tmp/drive1/","/tmp/drive2/"]
+        cmd = ["rsync", "-avxHAX", "--info=progress2", "/tmp/drive1/", "/tmp/drive2/"]
         clone_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        log_message("CLONE PID: {}".format(clone_process.pid))
+        log_message(f"CLONE PID: {clone_process.pid}")
         for l in clone_process.stdout:
             l = l.decode("utf-8")
             if 'xfr#' in l:
@@ -193,21 +186,20 @@ def main():
                     lines = l.split("\r")
                     logline = lines[len(lines)-1].strip()
                     parts = logline.split()
-                    logline = parts[0] + " bytes copied<br/>" + parts[1] + "<br/>" + parts[2] + "<br/>" + parts[3]
+                    logline = f"{parts[0]} bytes copied<br/>{parts[1]}<br/>{parts[2]}<br/>{parts[3]}"
                 except Exception as e:
                     logline = "Clone status parse error: ".format(str(e))
                 try:
-                    out_fd = open('/tmp/.clone_progress','w')
-                    out_fd.write(logline)
-                    out_fd.close()
+                    with open('/tmp/.clone_progress','w') as out_fd:
+                        out_fd.write(logline)
                 except Exception as e:
-                    log_message("Write Exception: " + str(e))
+                    log_message(f"Write Exception: {str(e)}")
 
         while clone_process.poll() is None:
             time.sleep(5)
             log_message("Waiting on rsync exit...")
 
-        log_message("CLONE RET CODE: {}".format(clone_process.returncode))
+        log_message(f"CLONE RET CODE: {clone_process.returncode}")
         if clone_process.returncode != 0:
             # Clone had an error - log it
             if clone_process.stderr != None:
@@ -217,7 +209,7 @@ def main():
                 for l in clone_process.stdout:
                     log_message("CLONE STDOUT: "+l.decode("utf-8"))
             set_clone_state("error")
-            set_clone_error("Clone failed with return code {}".format(clone_process.returncode))
+            set_clone_error(f"Clone failed with return code {clone_process.returncode}")
             wait_on_clone_error_dismiss()
             return
 
@@ -228,15 +220,15 @@ def main():
         log_message(e.stderr)
         log_message(e.stdout)
         set_clone_state("error")
-        set_clone_error("Clone failed: {}".format(e))
+        set_clone_error(f"Clone failed: {e}")
         wait_on_clone_error_dismiss()
         return
     except Exception as e:
         set_clone_state("error")
-        set_clone_error("Clone failed: {}".format(e))
+        set_clone_error(f"Clone failed: {e}")
         wait_on_clone_error_dismiss()
         return
-        
+
     # Complete - wait for reboot
     set_clone_state("complete")
     log_message("Clone Complete!")
@@ -250,6 +242,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        log_message("Exception: {}".format(str(e)))
-        set_clone_error("Exception: {}".format(str(e)))
+        log_message(f"Exception: {str(e)}")
+        set_clone_error(f"Exception: {str(e)}")
         wait_on_clone_error_dismiss()

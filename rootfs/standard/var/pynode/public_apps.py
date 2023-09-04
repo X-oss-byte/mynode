@@ -35,12 +35,10 @@ def write_rathole_config(config):
     set_file_contents(RATHOLE_CONFIG_FILE, config)
 
 def get_current_rathole_config():
-    config = get_file_contents(RATHOLE_CONFIG_FILE)
-    return config
+    return get_file_contents(RATHOLE_CONFIG_FILE)
 
 def generate_rathole_config(public_app_config):
-    config  = "# client.toml\n"
-    config += "[client]\n"
+    config = "# client.toml\n" + "[client]\n"
     config += "remote_addr = \"mynodebtc.com:2333\"\n"
     config += "retry_interval = 120\n"
     config += "\n"
@@ -63,11 +61,6 @@ def restart_rathole():
 
 def get_port_for_app(app_name):
     # Returns port for app - must be the port being served with the public app tls cert
-    app_ports = {}
-    app_ports["lnbits"] =       "6001"
-    app_ports["btcpayserver"] = "6002"
-    app_ports["lndhub"] =       "6003"
-    if app_name in app_ports:
-        return app_ports[app_name]
-    return ""
+    app_ports = {"lnbits": "6001", "btcpayserver": "6002", "lndhub": "6003"}
+    return app_ports.get(app_name, "")
 

@@ -17,13 +17,13 @@ class BackgroundThread(threading.Thread):
         # ... Other thread setup code here ...
  
     def run(self):
-        print('Thread #%s started' % self.ident)
+        print(f'Thread #{self.ident} started')
 
         self.pid = os.getpid()
- 
+
         while not self.shutdown_flag.is_set():
             self.run_function()
             time.sleep(self.rate)
- 
+
         # ... Clean shutdown code here ...
-        print('Thread #%s stopped' % self.ident)
+        print(f'Thread #{self.ident} stopped')

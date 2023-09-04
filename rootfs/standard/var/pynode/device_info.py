@@ -82,7 +82,7 @@ def factory_reset():
     reboot_device()
 
 def check_and_mark_reboot_action(tmp_marker):
-    tmp_marker_file = "/tmp/mark_reboot___{}".format(tmp_marker)
+    tmp_marker_file = f"/tmp/mark_reboot___{tmp_marker}"
     if os.path.isfile(tmp_marker_file):
         flash(u'Refresh prevented - action already triggered', category="error")
         raise RequestRedirect("/")
@@ -95,10 +95,10 @@ def reload_throttled_data():
 
 def get_throttled_data():
     global cached_data
+    r = {}
     if "get_throttled_data" in cached_data:
         data = cached_data["get_throttled_data"]
         hex_data = int(data, 16)
-        r = {}
         r["RAW_DATA"] = data
         r["UNDERVOLTED"] = 1 if hex_data & 0x1 else 0
         r["CAPPED"] = 1 if hex_data & 0x2 else 0
@@ -108,11 +108,10 @@ def get_throttled_data():
         r["HAS_CAPPED"] = 1 if hex_data & 0x20000 else 0
         r["HAS_THROTTLED"] = 1 if hex_data & 0x40000 else 0
         r["HAS_SOFT_TEMPLIMIT"] = 1 if hex_data & 0x80000 else 0
-        return r
     else:
-        r = {}
         r["RAW_DATA"] = "MISSING"
-        return r
+
+    return r
 
 #==================================
 # Manage Versions and Upgrades
@@ -166,48 +165,50 @@ def is_upgrade_running():
     return os.path.isfile("/tmp/upgrade_started") 
 
 def upgrade_device():
-    if not is_upgrade_running():
-        mark_upgrade_started()
+    if is_upgrade_running():
+        return
+    mark_upgrade_started()
 
-        # Upgrade
-        os.system("mkdir -p /home/admin/upgrade_logs")
-        os.system("cp -f /usr/bin/mynode_upgrade.sh /usr/bin/mynode_upgrade_running.sh")
-        file1 = "/home/admin/upgrade_logs/upgrade_log_from_{}_upgrade.txt".format(get_current_version())
-        file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
-        cmd = "/usr/bin/mynode_upgrade_running.sh 2>&1 | tee {} {}".format(file1, file2)
-        ret = subprocess.call(cmd, shell=True)
-        if ret != 0:
-            # Try one more time....
-            subprocess.call(cmd, shell=True)
-        
-        # Sync
-        os.system("sync")
-        time.sleep(1)
+    # Upgrade
+    os.system("mkdir -p /home/admin/upgrade_logs")
+    os.system("cp -f /usr/bin/mynode_upgrade.sh /usr/bin/mynode_upgrade_running.sh")
+    file1 = f"/home/admin/upgrade_logs/upgrade_log_from_{get_current_version()}_upgrade.txt"
+    file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
+    cmd = f"/usr/bin/mynode_upgrade_running.sh 2>&1 | tee {file1} {file2}"
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        # Try one more time....
+        subprocess.call(cmd, shell=True)
 
-        # Reboot
-        reboot_device()
+    # Sync
+    os.system("sync")
+    time.sleep(1)
+
+    # Reboot
+    reboot_device()
 
 def upgrade_device_beta():
-    if not is_upgrade_running():
-        mark_upgrade_started()
+    if is_upgrade_running():
+        return
+    mark_upgrade_started()
 
-        # Upgrade
-        os.system("mkdir -p /home/admin/upgrade_logs")
-        os.system("cp -f /usr/bin/mynode_upgrade.sh /usr/bin/mynode_upgrade_running.sh")
-        file1 = "/home/admin/upgrade_logs/upgrade_log_from_{}_upgrade.txt".format(get_current_version())
-        file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
-        cmd = "/usr/bin/mynode_upgrade_running.sh beta 2>&1 | tee {} {}".format(file1, file2)
-        ret = subprocess.call(cmd, shell=True)
-        if ret != 0:
-            # Try one more time....
-            subprocess.call(cmd, shell=True)
-        
-        # Sync
-        os.system("sync")
-        time.sleep(1)
+    # Upgrade
+    os.system("mkdir -p /home/admin/upgrade_logs")
+    os.system("cp -f /usr/bin/mynode_upgrade.sh /usr/bin/mynode_upgrade_running.sh")
+    file1 = f"/home/admin/upgrade_logs/upgrade_log_from_{get_current_version()}_upgrade.txt"
+    file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
+    cmd = f"/usr/bin/mynode_upgrade_running.sh beta 2>&1 | tee {file1} {file2}"
+    ret = subprocess.call(cmd, shell=True)
+    if ret != 0:
+        # Try one more time....
+        subprocess.call(cmd, shell=True)
 
-        # Reboot
-        reboot_device()
+    # Sync
+    os.system("sync")
+    time.sleep(1)
+
+    # Reboot
+    reboot_device()
 
 def did_upgrade_fail():
     return os.path.isfile("/mnt/hdd/mynode/settings/upgrade_error")
@@ -228,11 +229,14 @@ def get_all_upgrade_logs():
     try:
         # Add latest upgrade log
         if os.path.isfile( os.path.join(folder, "upgrade_log_latest.txt") ):
-            log = {}
-            log["id"] = log_id
-            log["name"] = "Latest Upgrade"
             modTimeSeconds = os.path.getmtime( os.path.join(folder, "upgrade_log_latest.txt") )
-            log["date"] = time.strftime('%Y-%m-%d', time.localtime(modTimeSeconds))
+            log = {
+                "id": log_id,
+                "name": "Latest Upgrade",
+                "date": time.strftime(
+                    '%Y-%m-%d', time.localtime(modTimeSeconds)
+                ),
+            }
             log["log"] = get_recent_upgrade_log()
             log_list.append( log )
             log_id += 1
@@ -242,8 +246,7 @@ def get_all_upgrade_logs():
             for f in os.listdir(folder):
                 fullpath = os.path.join(folder, f)
                 if os.path.isfile( fullpath ):
-                    log = {}
-                    log["id"] = log_id
+                    log = {"id": log_id}
                     log["name"] = f
                     modTimeSeconds = os.path.getmtime(fullpath)
                     log["date"] = time.strftime('%Y-%m-%d', time.localtime(modTimeSeconds))
@@ -383,9 +386,7 @@ def get_local_ip():
 
 def get_local_ip_subnet_conflict():
     ip = get_local_ip()
-    if ip.startswith("172."):
-        return True
-    return False
+    return bool(ip.startswith("172."))
 
 def get_device_changelog():
     changelog = ""
@@ -406,9 +407,7 @@ def has_changed_password():
     return False
 
 def hide_password_warning():
-    if os.path.isfile("/mnt/hdd/mynode/settings/hide_password_warning"):
-        return True
-    return False
+    return bool(os.path.isfile("/mnt/hdd/mynode/settings/hide_password_warning"))
 
 def is_mount_read_only(mnt):
     with open('/proc/mounts') as f:
@@ -421,7 +420,9 @@ def is_mount_read_only(mnt):
 
 def set_swap_size(size):
     size_mb = int(size) * 1024
-    os.system("sed -i 's|CONF_SWAPSIZE=.*|CONF_SWAPSIZE={}|' /etc/dphys-swapfile".format(size_mb))
+    os.system(
+        f"sed -i 's|CONF_SWAPSIZE=.*|CONF_SWAPSIZE={size_mb}|' /etc/dphys-swapfile"
+    )
     return set_file_contents("/mnt/hdd/mynode/settings/swap_size", size)
 
 def get_swap_size():
@@ -505,10 +506,14 @@ def get_clone_target_drive_has_mynode():
     return os.path.isfile("/tmp/.clone_target_drive_has_mynode")
 
 def get_drive_info(drive):
-    data = {}
-    data["name"] = "NOT_FOUND"
+    data = {"name": "NOT_FOUND"}
     try:
-        lsblk_output = to_string(subprocess.check_output("lsblk -io KNAME,TYPE,SIZE,MODEL,VENDOR /dev/{} | grep disk".format(drive), shell=True).decode("utf-8"))
+        lsblk_output = to_string(
+            subprocess.check_output(
+                f"lsblk -io KNAME,TYPE,SIZE,MODEL,VENDOR /dev/{drive} | grep disk",
+                shell=True,
+            ).decode("utf-8")
+        )
         parts = lsblk_output.split()
         data["name"] = parts[0]
         data["size"] = parts[2]
@@ -539,7 +544,7 @@ def read_ui_settings():
     global ui_settings
     if ui_settings != None:
         return ui_settings
-    
+
     ui_hdd_file = '/mnt/hdd/mynode/settings/ui.json'
     ui_mynode_file = '/home/bitcoin/.mynode/ui.json'
 
@@ -558,9 +563,8 @@ def read_ui_settings():
 
     # If no files were read, init variable and mark we need to write files
     need_file_write = False
-    if ui_settings == None:
-        ui_settings = {}
-        ui_settings["background"] = "digital"
+    if ui_settings is None:
+        ui_settings = {"background": "digital"}
         need_file_write = True
 
     # Set reseller
@@ -627,7 +631,7 @@ def get_flask_secret_key():
         key = to_string( get_file_contents("/home/bitcoin/.mynode/flask_secret_key") )
     else:
         letters = string.ascii_letters
-        key = ''.join(random.choice(letters) for i in range(32))
+        key = ''.join(random.choice(letters) for _ in range(32))
         set_file_contents("/home/bitcoin/.mynode/flask_secret_key", key)
     return key
 
@@ -646,7 +650,9 @@ def get_flask_session_timeout():
         return 7,0
 
 def set_flask_session_timeout(days, hours):
-    set_file_contents("/home/bitcoin/.mynode/flask_session_timeout", "{},{}".format(days, hours))
+    set_file_contents(
+        "/home/bitcoin/.mynode/flask_session_timeout", f"{days},{hours}"
+    )
     os.system("sync")
 
 
@@ -760,10 +766,10 @@ def is_valid_product_key():
     return not os.path.isfile("/home/bitcoin/.mynode/.product_key_error")
 def save_product_key(product_key):
     pk = product_key.replace("-","")
-    os.system("echo '{}' > /home/bitcoin/.mynode/.product_key".format(pk))
-    os.system("echo '{}' > /mnt/hdd/mynode/settings/.product_key".format(pk))
+    os.system(f"echo '{pk}' > /home/bitcoin/.mynode/.product_key")
+    os.system(f"echo '{pk}' > /mnt/hdd/mynode/settings/.product_key")
 def mark_product_key_error():
-    os.system("echo '{}' > /home/bitcoin/.mynode/.product_key_error".format("ERROR"))
+    os.system("echo 'ERROR' > /home/bitcoin/.mynode/.product_key_error")
 def delete_product_key_error():
     os.system("rm -rf /home/bitcoin/.mynode/.product_key_error")
     os.system("rm -rf /mnt/hdd/mynode/settings/.product_key_error")
@@ -843,7 +849,7 @@ def get_premium_plus_token():
 def reset_premium_plus_token_status():
     delete_file("/home/bitcoin/.mynode/.premium_plus_token_status")
 def set_premium_plus_token_status(msg):
-    os.system("echo '{}' > /home/bitcoin/.mynode/.premium_plus_token_status".format(msg))
+    os.system(f"echo '{msg}' > /home/bitcoin/.mynode/.premium_plus_token_status")
 def get_premium_plus_token_status():
     status = "UNKNOWN"
     if not has_premium_plus_token():
@@ -860,21 +866,16 @@ def is_premium_plus_active():
     return get_premium_plus_is_connected()
 def get_premium_plus_is_connected():
     status = get_premium_plus_token_status()
-    if status == "OK":
-        return True
-    return False
+    return status == "OK"
 def update_premium_plus_last_sync_time():
     t = int(round(time.time()))
-    os.system("echo '{}' > /home/bitcoin/.mynode/.premium_plus_last_sync".format(t))
+    os.system(f"echo '{t}' > /home/bitcoin/.mynode/.premium_plus_last_sync")
 def get_premium_plus_last_sync():
     try:
         now = int(round(time.time()))
         last = int(get_file_contents("/home/bitcoin/.mynode/.premium_plus_last_sync"))
         diff_min = int((now - last) / 60)
-        if diff_min == 0:
-            return "Now"
-        else:
-            return "{} minutes(s) ago".format(diff_min)
+        return "Now" if diff_min == 0 else f"{diff_min} minutes(s) ago"
     except Exception as e:
         return "Unknown"
 def save_premium_plus_token(token):
@@ -898,9 +899,7 @@ def get_premium_plus_setting_names():
     return ["sync_status","sync_bitcoin_and_lightning","backup_scb","watchtower", "public_apps"]
 def get_premium_plus_settings():
     names = get_premium_plus_setting_names()
-    settings = {}
-    for n in names:
-        settings[n] = False
+    settings = {n: False for n in names}
     for n in names:
         settings[n] = settings_file_exists(n)
     return settings
@@ -974,18 +973,15 @@ def get_docker_image_build_status():
     if status_code != 0:
         return "Failed... Retrying Later"
 
-    if is_installing_docker_images():
-        return "Installing..."
-    else:
-        return "Installation Complete"
-
-    return "Unknown"
+    return (
+        "Installing..."
+        if is_installing_docker_images()
+        else "Installation Complete"
+    )
 
 def get_docker_image_build_status_color():
     status_code = get_service_status_code("docker_images")
-    if status_code != 0:
-        return "red"
-    return "green"
+    return "red" if status_code != 0 else "green"
 
 def reset_docker():
     # Delete docker data
@@ -1029,9 +1025,9 @@ def get_usb_extras():
             with open(json_path) as f:
                 devices = json.load(f)
         except Exception as e:
-            log_message("EXCEPTION in get_usb_extras: " + str(e))
+            log_message(f"EXCEPTION in get_usb_extras: {str(e)}")
             devices = []
-    log_message("get_usb_extras: {}".format(len(devices)))
+    log_message(f"get_usb_extras: {len(devices)}")
     return devices
     
 
@@ -1055,7 +1051,7 @@ def get_bitcoin_log_file():
     return "/mnt/hdd/mynode/bitcoin/debug.log"
 
 def reset_bitcoin_env_file():
-    os.system("echo 'BTCARGS=' > "+BITCOIN_ENV_FILE)
+    os.system(f"echo 'BTCARGS=' > {BITCOIN_ENV_FILE}")
 
 def delete_bitcoin_peer_database():
     os.system("rm -rf /mnt/hdd/mynode/bitcoin/peers.dat")
@@ -1085,9 +1081,9 @@ def install_custom_bitcoin_version(version):
     os.system("mkdir -p /home/admin/upgrade_logs")
     file1 = "/home/admin/upgrade_logs/install_custom_bitcoin.txt"
     file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
-    cmd = "/usr/bin/mynode-install-custom-bitcoin {} 2>&1 | tee {} {}".format(version,file1, file2)
+    cmd = f"/usr/bin/mynode-install-custom-bitcoin {version} 2>&1 | tee {file1} {file2}"
     subprocess.call(cmd, shell=True)
-    
+
     # Sync and Reboot
     os.system("sync")
     time.sleep(1)
@@ -1098,7 +1094,7 @@ def install_custom_bitcoin_version(version):
 # LND Functions
 #==================================
 def delete_lnd_data():
-    os.system("rm -rf "+LND_DATA_FOLDER)
+    os.system(f"rm -rf {LND_DATA_FOLDER}")
     os.system("rm -rf /mnt/hdd/mynode/pool/*")
     os.system("rm -rf /mnt/hdd/mynode/loop/*")
     os.system("rm -rf /mnt/hdd/mynode/lit/*")
@@ -1215,9 +1211,9 @@ def reset_specter_config():
 # BTC RPC Explorer Functions
 #==================================
 def is_btcrpcexplorer_token_enabled():
-    if os.path.isfile("/mnt/hdd/mynode/settings/.btcrpcexplorer_disable_token"):
-        return False
-    return True
+    return not os.path.isfile(
+        "/mnt/hdd/mynode/settings/.btcrpcexplorer_disable_token"
+    )
 
 def enable_btcrpcexplorer_token():
     delete_file("/mnt/hdd/mynode/settings/.btcrpcexplorer_disable_token")
@@ -1338,17 +1334,15 @@ def get_onion_url_sphinxrelay():
 def get_onion_url_for_service(short_name):
     if is_community_edition(): return "not_available"
     try:
-        if os.path.isfile("/var/lib/tor/mynode_{}/hostname".format(short_name)):
-            with open("/var/lib/tor/mynode_{}/hostname".format(short_name)) as f:
+        if os.path.isfile(f"/var/lib/tor/mynode_{short_name}/hostname"):
+            with open(f"/var/lib/tor/mynode_{short_name}/hostname") as f:
                 return f.read().strip()
     except:
         pass
     return "error"
 
 def get_onion_info_btc_v2():
-    info = {}
-    info["url"] = "unknown"
-    info["pass"] = "unknown"
+    info = {"url": "unknown", "pass": "unknown"}
     try:
         if os.path.isfile("/var/lib/tor/mynode_btc_v2/hostname"):
             with open("/var/lib/tor/mynode_btc_v2/hostname") as f:
@@ -1399,10 +1393,11 @@ def get_sso_token(short_name):
     return to_string(token)
 
 def get_sso_token_enabled(short_name):
-    enabled = False
-    if short_name == "btcrpcexplorer":
-        enabled = is_btcrpcexplorer_token_enabled()
-    return enabled
+    return (
+        is_btcrpcexplorer_token_enabled()
+        if short_name == "btcrpcexplorer"
+        else False
+    )
 
 
 #==================================
@@ -1417,8 +1412,7 @@ def generate_qr_code(url):
 
         qr.add_data(url)
         qr.make(fit=True)
-        img = qr.make_image()
-        return img
+        return qr.make_image()
     except Exception as e:
-        log_message("generate_qr_code exception: {}".format(str(e)))
+        log_message(f"generate_qr_code exception: {str(e)}")
         return None

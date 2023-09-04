@@ -36,10 +36,7 @@ def add_usb_device(usb_device):
 
 def remove_usb_device(usb_device):
     global usb_devices
-    new_devices = []
-    for d in usb_devices:
-        if d.id != usb_device.id:
-            new_devices.append(d)
+    new_devices = [d for d in usb_devices if d.id != usb_device.id]
     usb_devices = new_devices
     write_usb_devices_json()
 
@@ -55,7 +52,7 @@ def write_usb_devices_json():
 ## Utility Functions
 ################################
 def set_usb_extras_state(state):
-    log_message("USB Extras State: {}".format(state))
+    log_message(f"USB Extras State: {state}")
     try:
         with open("/tmp/.usb_extras_state", "w") as f:
             f.write(state)
@@ -122,15 +119,15 @@ class OpendimeHandler(UsbDeviceHandler):
         self.http_server_thread = None
 
     def to_dict(self):
-        dict = {}
-        dict["id"] = self.id
-        dict["device_type"] = self.device_type
-        dict["device"] = self.device
-        dict["partition"] = self.partition
-        dict["folder_name"] = self.folder_name
-        dict["port"] = self.port
-        dict["state"] = self.state
-        return dict
+        return {
+            "id": self.id,
+            "device_type": self.device_type,
+            "device": self.device,
+            "partition": self.partition,
+            "folder_name": self.folder_name,
+            "port": self.port,
+            "state": self.state,
+        }
 
     def start(self):
         try:
@@ -171,7 +168,7 @@ class OpendimeHandler(UsbDeviceHandler):
                 return False
         except Exception as e:
             unmount_partition(self.folder_name)
-            log_message("Opendime Start Exception: {}".format(str(e)))
+            log_message(f"Opendime Start Exception: {str(e)}")
             return False
 
     def stop(self):
@@ -180,7 +177,7 @@ class OpendimeHandler(UsbDeviceHandler):
                 self.http_server.shutdown()
             unmount_partition(self.folder_name)
         except Exception as e:
-            log_message("Opendime Stop Exception: {}".format(str(e)))
+            log_message(f"Opendime Stop Exception: {str(e)}")
 
 ################################
 ## check_usb_devices()
@@ -189,7 +186,7 @@ def check_usb_devices():
     try:
         # if new event, reset state
         # if no new event and in state (mounted), jump to state machine
-        
+
         # Set initial state
         set_usb_extras_state("detecting")
         os.system("umount /mnt/usb_extras")
@@ -231,9 +228,9 @@ def check_usb_devices():
 
         # Successful scan post init or usb action detected, mark homepage refresh
         os.system("touch /tmp/homepage_needs_refresh")
-            
+
     except Exception as e:
-        log_message("Exception: {}".format(str(e)))
+        log_message(f"Exception: {str(e)}")
         set_usb_extras_state("error")
         reset_usb_devices()
         log_message("Caught exception. Delaying 30s.")
@@ -264,12 +261,10 @@ def main():
     for device in iter(monitor.poll, None):
         log_message("")
         log_message("Got USB event: %s", device.action)
-        if device.action == 'add':
-            check_usb_devices()
-        else:
+        if device.action != 'add':
             # HANDLE DEVICE REMOVAL BETTER? This resets all and re-scans
             reset_usb_devices()
-            check_usb_devices()
+        check_usb_devices()
         log_message("Waiting on USB Event...")
         set_usb_extras_state("waiting")
     
@@ -288,7 +283,7 @@ if __name__ == "__main__":
             main()
         except Exception as e:
             set_usb_extras_state("error")
-            log_message("Main Exception: {}".format(str(e)))
+            log_message(f"Main Exception: {str(e)}")
             log_message("Caught exception. Delaying 30s.")
             unmount_partition("*")
             reset_usb_devices()

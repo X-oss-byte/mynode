@@ -13,50 +13,43 @@ def init_warning_data():
         return
 
     # Add undervoltage warning
-    undervoltage_warning = {}
-    undervoltage_warning["name"] = "undervoltage"
-    undervoltage_warning["header"] = "Device Undervoltage"
-    undervoltage_warning["description"] = "Your device has had an undervoltage warning. This typically means \
-                                           your power supply is going bad or is not powerful enough. This can \
-                                           lead to data corruption and loss of data."
+    undervoltage_warning = {
+        "name": "undervoltage",
+        "header": "Device Undervoltage",
+        "description": "Your device has had an undervoltage warning. This typically means \\n    #                                           your power supply is going bad or is not powerful enough. This can \\n    #                                           lead to data corruption and loss of data.",
+    }
     warning_data[undervoltage_warning["name"]] = undervoltage_warning
 
     # Add throttled warning
-    undervoltage_warning = {}
-    undervoltage_warning["name"] = "throttled"
-    undervoltage_warning["header"] = "Device CPU Throttled"
-    undervoltage_warning["description"] = "Your device has had a throttling warning. This typically means there is \
-                                           not enough power being supplied to run your device at full speed. Your \
-                                           device may run slowly. A new power supply may help."
+    undervoltage_warning = {
+        "name": "throttled",
+        "header": "Device CPU Throttled",
+        "description": "Your device has had a throttling warning. This typically means there is \\n    #                                           not enough power being supplied to run your device at full speed. Your \\n    #                                           device may run slowly. A new power supply may help.",
+    }
     warning_data[undervoltage_warning["name"]] = undervoltage_warning
 
     # Add capped warning
-    undervoltage_warning = {}
-    undervoltage_warning["name"] = "capped"
-    undervoltage_warning["header"] = "Device CPU Capped"
-    undervoltage_warning["description"] = "Your device has had a capped warning. This typically means your device has \
-                                           gotten quite hot and slowed the CPU down to try and lower the temperature. \
-                                           This can make your device run slowly and reduce the device's lifetime."
+    undervoltage_warning = {
+        "name": "capped",
+        "header": "Device CPU Capped",
+        "description": "Your device has had a capped warning. This typically means your device has \\n    #                                           gotten quite hot and slowed the CPU down to try and lower the temperature. \\n    #                                           This can make your device run slowly and reduce the device's lifetime.",
+    }
     warning_data[undervoltage_warning["name"]] = undervoltage_warning
 
 def is_warning_skipped(warning):
-    if os.path.isfile("/tmp/warning_skipped_{}".format(warning)):
-        return True
-    return False
+    return bool(os.path.isfile(f"/tmp/warning_skipped_{warning}"))
 
 def skip_warning(warning):
     global warning_data
     init_warning_data()
-    touch("/tmp/warning_skipped_{}".format(warning))
+    touch(f"/tmp/warning_skipped_{warning}")
 
 def is_warning_present():
     global warning_data
     init_warning_data()
 
     warning = get_current_warning()
-    if warning != "NONE":
-        return True
-    return False
+    return warning != "NONE"
 
 def get_current_warning():
     global warning_data

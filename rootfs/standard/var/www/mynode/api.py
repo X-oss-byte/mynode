@@ -29,8 +29,7 @@ mynode_api = Blueprint('mynode_api',__name__)
 def api_ping():
     check_logged_in()
 
-    data = {}
-    data["status"] = get_mynode_status()
+    data = {"status": get_mynode_status()}
     data["uptime_seconds"] = get_system_uptime_in_seconds()
     return jsonify(data)
 
@@ -38,8 +37,7 @@ def api_ping():
 def api_get_bitcoin_info():
     check_logged_in()
 
-    data = {}
-    data["current_block"] = get_mynode_block_height()
+    data = {"current_block": get_mynode_block_height()}
     data["block_height"] = get_bitcoin_block_height()
     data["progress"] = get_bitcoin_sync_progress()
     data["peer_count"] = get_bitcoin_peer_count()
@@ -65,8 +63,7 @@ def api_get_bitcoin_info():
 def api_get_lightning_info():
     check_logged_in()
 
-    data = {}
-    data["peer_count"] = get_lightning_peer_count()
+    data = {"peer_count": get_lightning_peer_count()}
     data["channel_count"] = get_lightning_channel_count()
     data["lnd_ready"] = is_lnd_ready()
     data["balances"] = get_lightning_balance_info()
@@ -80,8 +77,7 @@ def api_get_lightning_info():
 def api_get_price_info():
     check_logged_in()
 
-    data = {}
-    data["price"] = get_latest_price()
+    data = {"price": get_latest_price()}
     data["delta"] = get_price_diff_24hrs()
     data["direction"] = get_price_up_down_flat_24hrs()
 
@@ -91,15 +87,13 @@ def api_get_price_info():
 def api_get_service_status():
     check_logged_in()
 
-    data = {}
-    data["status"] = "gray"
-    data["color"] = ""
-    data["sso_token"] = ""
-
     service = request.args.get('service')
 
-    # Try standard status API
-    data["status"] = get_application_status(service)
+    data = {
+        "color": "",
+        "sso_token": "",
+        "status": get_application_status(service),
+    }
     data["status_basic"] = get_service_status_basic_text(service)
     data["color"] = get_application_status_color(service)
     data["sso_token"] = get_application_sso_token(service)
@@ -110,9 +104,7 @@ def api_get_service_status():
 def api_get_app_info():
     check_logged_in()
 
-    data = {}
-    data["status"] = "ERROR"
-
+    data = {"status": "ERROR"}
     if request.args.get('app'):
         name = request.args.get('app')
         if is_application_valid(name):
@@ -133,17 +125,13 @@ def api_restart_app():
         return "NO_APP_SPECIFIED"
     if not is_application_valid(app):
         return "INVALID_APP_NAME"
-    if not restart_application(app):
-        return "ERROR"
-
-    return "OK"
+    return "ERROR" if not restart_application(app) else "OK"
 
 @mynode_api.route("/api/get_device_info")
 def api_get_device_info():
     check_logged_in()
 
-    data = {}
-    data["data_drive_usage"] = get_data_drive_usage()
+    data = {"data_drive_usage": get_data_drive_usage()}
     data["cpu"] = get_cpu_usage()
     data["ram"] = get_ram_usage()
     data["temp"] = get_device_temp()
@@ -157,9 +145,7 @@ def api_get_device_info():
 def api_homepage_needs_refresh():
     check_logged_in()
 
-    data = {}
-    data["needs_refresh"] = "no"
-
+    data = {"needs_refresh": "no"}
     if get_mynode_status() != STATE_STABLE:
         data["needs_refresh"] = "yes"
     if not has_product_key() and not skipped_product_key():
@@ -180,58 +166,40 @@ def api_homepage_needs_refresh():
 def api_get_log():
     check_logged_in()
 
-    data = {}
-    data["log"] = "LOG MISSING"
-
+    data = {"log": "LOG MISSING"}
     if not request.args.get("app"):
         data["log"] = "NO APP SPECIFIED"
         return jsonify(data)
 
     app_name = request.args.get("app")
     data["log"] = get_application_log(app_name)
-    
+
     return jsonify(data)
 
 @mynode_api.route("/api/get_qr_code_image")
 def api_get_qr_code_image():
     check_logged_in()
 
-    url = "ERROR_URL"
-    if request.args.get("url"):
-        url = request.args.get("url")
-    
-    if isPython3():
-        img_buf = BytesIO()
-        img = generate_qr_code(url)
-        img.save(img_buf)
-        img_buf.seek(0)
-        return send_file(img_buf, mimetype='image/png')
-    else:
-        img_buf = cStringIO.StringIO()
-        img = generate_qr_code(url)
-        img.save(img_buf)
-        img_buf.seek(0)
-        return send_file(img_buf, mimetype='image/png')
+    url = request.args.get("url") if request.args.get("url") else "ERROR_URL"
+    img_buf = BytesIO() if isPython3() else cStringIO.StringIO()
+    img = generate_qr_code(url)
+    img.save(img_buf)
+    img_buf.seek(0)
+    return send_file(img_buf, mimetype='image/png')
 
 @mynode_api.route("/api/get_message")
 def api_get_message():
     check_logged_in()
-    
-    funny = False
-    if request.args.get("funny"):
-        funny = True
-    
-    data = {}
-    data["message"] = get_message(funny)
+
+    funny = bool(request.args.get("funny"))
+    data = {"message": get_message(funny)}
     return jsonify(data)
 
 @mynode_api.route("/api/toggle_setting")
 def api_toggle_setting():
     check_logged_in()
 
-    data = {}
-    data["status"] = "unknown"
-
+    data = {"status": "unknown"}
     if not request.args.get("setting"):
         data["status"] = "no_setting_specified"
         return jsonify(data)
@@ -245,16 +213,14 @@ def api_toggle_setting():
         data["status"] = "success"
     else:
         data["status"] = "unknown_setting"
-    
+
     return jsonify(data)
 
 @mynode_api.route("/api/set_setting")
 def api_set_setting():
     check_logged_in()
 
-    data = {}
-    data["status"] = "unknown"
-
+    data = {"status": "unknown"}
     if not request.args.get("setting"):
         data["status"] = "no_setting_specified"
         return jsonify(data)
@@ -269,16 +235,14 @@ def api_set_setting():
         data["status"] = "success"
     else:
         data["status"] = "unknown_setting"
-    
+
     return jsonify(data)
 
 @mynode_api.route("/api/get_drive_benchmark")
 def api_get_drive_benchmark():
     check_logged_in()
 
-    data = {}
-    data["status"] = "error"
-    data["data"] = "UNKNOWN"
+    data = {"status": "error", "data": "UNKNOWN"}
     try:
         data["data"] = to_string(subprocess.check_output("hdparm -Tt $(cat /tmp/.mynode_drive)", shell=True))
         data["status"] = "success"
@@ -290,9 +254,7 @@ def api_get_drive_benchmark():
 def api_get_usb_info():
     check_logged_in()
 
-    data = {}
-    data["status"] = "error"
-    data["data"] = "UNKNOWN"
+    data = {"status": "error", "data": "UNKNOWN"}
     try:
         info = ""
         info += to_string(subprocess.check_output("lsusb", shell=True))
