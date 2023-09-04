@@ -11,8 +11,9 @@ mynode_sphinxrelay = Blueprint('mynode_sphinxrelay',__name__)
 
 ### Functions
 def get_connection_string():
-    s = to_string( get_file_contents("/opt/mynode/sphinxrelay/connection_string.txt") )
-    return s
+    return to_string(
+        get_file_contents("/opt/mynode/sphinxrelay/connection_string.txt")
+    )
 
 
 ### Page functions

@@ -16,9 +16,7 @@ mynode_logger = None
 # Python Info
 #==================================
 def isPython3():
-    if (sys.version_info > (3, 0)):
-        return True
-    return False
+    return sys.version_info > (3, 0)
 
 def to_bytes(s):
     if type(s) is bytes:
@@ -26,24 +24,17 @@ def to_bytes(s):
     elif type(s) is str or (not isPython3() and type(s) is unicode):
         return codecs.encode(s, 'utf-8', 'ignore')
     else:
-        raise TypeError("to_bytes: Expected bytes or string, but got %s." % type(s))
+        raise TypeError(f"to_bytes: Expected bytes or string, but got {type(s)}.")
 
 def to_string(s):
     b = to_bytes(s)
-    r = b.decode("utf-8")
-    return r
+    return b.decode("utf-8")
 
 def quote_plus(s):
-    if isPython3():
-        return urllib.parse.quote_plus(s)
-    else:
-        return urllib.quote_plus(s)
+    return urllib.parse.quote_plus(s) if isPython3() else urllib.quote_plus(s)
 
 def unquote_plus(s):
-    if isPython3():
-        return urllib.parse.unquote_plus(s)
-    else:
-        return urllib.unquote_plus(s)
+    return urllib.parse.unquote_plus(s) if isPython3() else urllib.unquote_plus(s)
 
 #==================================
 # Utilities
@@ -56,7 +47,7 @@ def touch(file_path):
     else:
         open(file_path, 'a').close()
     # Touch via system
-    os.system("touch {}".format(file_path))
+    os.system(f"touch {file_path}")
     # Sync
     os.system("sync")
 
@@ -64,9 +55,9 @@ def delete_file(file_path):
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
-            os.system("rm -f {}".format(file_path))
+            os.system(f"rm -f {file_path}")
     except Exception as e:
-        log_message("FAILED TO DELETE {}".format(file_path))
+        log_message(f"FAILED TO DELETE {file_path}")
     
 def get_file_contents(filename):
     contents = "UNKNOWN"
@@ -96,7 +87,7 @@ utilities_cached_data = {}
 
 def is_cached(key, refresh_time=0): # Don't timeout by default
     global utilities_cached_data
-    cache_time_key = key + "_cache_time"
+    cache_time_key = f"{key}_cache_time"
     now_time = int(time.time())
     if key in utilities_cached_data:
         if refresh_time != 0 and cache_time_key in utilities_cached_data:
@@ -108,23 +99,21 @@ def is_cached(key, refresh_time=0): # Don't timeout by default
 
 def get_cached_data(key):
     global utilities_cached_data
-    if key in utilities_cached_data:
-        return utilities_cached_data[key]
-    return None
+    return utilities_cached_data[key] if key in utilities_cached_data else None
 
 def set_cached_data(key, value):
     update_cached_data(key, value)
 
 def update_cached_data(key, value):
     global utilities_cached_data
-    cache_time_key = key + "_cache_time"
+    cache_time_key = f"{key}_cache_time"
     now_time = int(time.time())
     utilities_cached_data[key] = value
     utilities_cached_data[cache_time_key] = now_time
 
 def clear_cached_data(key):
     global utilities_cached_data
-    cache_time_key = key + "_cache_time"
+    cache_time_key = f"{key}_cache_time"
     utilities_cached_data.pop(key, None)
     utilities_cached_data.pop(cache_time_key, None)
 
@@ -145,7 +134,7 @@ def set_dictionary_file_cache(data, file_path):
             json.dump(data, file)
         return True
     except Exception as e:
-        log_message("ERROR set_dictionary_file_cache ({}):{} ".format(file_path, str(e)))
+        log_message(f"ERROR set_dictionary_file_cache ({file_path}):{str(e)} ")
         log_message(str(data))
         return False
 
@@ -155,7 +144,7 @@ def get_dictionary_file_cache(file_path):
             data = json.load(file)
         return data
     except Exception as e:
-        log_message("ERROR get_dictionary_file_cache ({}): {}".format(file_path, str(e)))
+        log_message(f"ERROR get_dictionary_file_cache ({file_path}): {str(e)}")
         return None
 
 #==================================
@@ -166,8 +155,8 @@ def create_settings_file(name):
 
     folder_1="/home/bitcoin/.mynode/"
     folder_2="/mnt/hdd/mynode/settings/"
-    path_1="{}{}".format(folder_1, name)
-    path_2="{}{}".format(folder_2, name)
+    path_1 = f"{folder_1}{name}"
+    path_2 = f"{folder_2}{name}"
     touch(path_1)
     if is_mynode_drive_mounted():
         touch(path_2)
@@ -175,10 +164,10 @@ def create_settings_file(name):
 def delete_settings_file(name):
     folder_1="/home/bitcoin/.mynode/"
     folder_2="/mnt/hdd/mynode/settings/"
-    path_1="{}{}".format(folder_1, name)
-    path_2="{}{}".format(folder_2, name)
-    path_3="{}.{}".format(folder_1, name)
-    path_4="{}.{}".format(folder_2, name)
+    path_1 = f"{folder_1}{name}"
+    path_2 = f"{folder_2}{name}"
+    path_3 = f"{folder_1}.{name}"
+    path_4 = f"{folder_2}.{name}"
     delete_file(path_1)
     delete_file(path_2)
     delete_file(path_3)
@@ -189,11 +178,11 @@ def settings_file_exists(name):
 
     folder_1="/home/bitcoin/.mynode/"
     folder_2="/mnt/hdd/mynode/settings/"
-    path_1="{}{}".format(folder_1, name)
-    path_2="{}{}".format(folder_2, name)
-    path_3="{}.{}".format(folder_1, name)
-    path_4="{}.{}".format(folder_2, name)
-    
+    path_1 = f"{folder_1}{name}"
+    path_2 = f"{folder_2}{name}"
+    path_3 = f"{folder_1}.{name}"
+    path_4 = f"{folder_2}.{name}"
+
     # Migrate hidden files to non-hidden
     if os.path.isfile(path_3) or os.path.isfile(path_4):
         # Make sure backup file is in place
@@ -211,7 +200,7 @@ def settings_file_exists(name):
         if is_mynode_drive_mounted():
             touch(path_2)
         return True
-    
+
     return False
 
 
@@ -249,7 +238,7 @@ def get_file_log(file_path):
         lines.reverse()
         status_log = '\n'.join(lines)
     except Exception as e:
-        status_log = "ERROR ({})".format(str(e))
+        status_log = f"ERROR ({str(e)})"
     return status_log
 
 
@@ -258,12 +247,12 @@ def get_file_log(file_path):
 #==================================
 def set_data(key, value):
     r = redis.Redis(host='localhost', port=6379, db=0)
-    mynode_key = "mynode_" + key
+    mynode_key = f"mynode_{key}"
     return r.set(mynode_key, value)
 
 def get_data(key):
     r = redis.Redis(host='localhost', port=6379, db=0)
-    mynode_key = "mynode_" + key
+    mynode_key = f"mynode_{key}"
     return r.get(mynode_key)
 
 
@@ -297,7 +286,7 @@ def get_md5_file_hash(path):
     try:
         return hashlib.md5(open(path,'rb').read()).hexdigest()
     except Exception as e:
-        return "ERROR ({})".format(e)
+        return f"ERROR ({e})"
 
 #==================================
 # Network Functions
@@ -308,10 +297,10 @@ def make_tor_request(url, data, file_data=None, max_retries=5, fallback_to_ip=Tr
 
     # Setup tor proxy
     session = requests.session()
-    session.proxies = {}
-    session.proxies['http'] = 'socks5h://localhost:9050'
-    session.proxies['https'] = 'socks5h://localhost:9050'
-
+    session.proxies = {
+        'http': 'socks5h://localhost:9050',
+        'https': 'socks5h://localhost:9050',
+    }
     # Check In
     for fail_count in range(max_retries):
         try:
@@ -321,13 +310,13 @@ def make_tor_request(url, data, file_data=None, max_retries=5, fallback_to_ip=Tr
                 r = requests.post(url, data=data, files=file_data, timeout=20)
             else:
                 r = session.post(url, data=data, files=file_data, timeout=20)
-            
+
             if r.status_code == 200:
                 return r
             else:
-                log_message("Connection to {} failed. Retrying... Code {}".format(url, r.status_code))
+                log_message(f"Connection to {url} failed. Retrying... Code {r.status_code}")
         except Exception as e:
-            log_message("Connection to {} failed. Retrying... Exception {}".format(url, e))
+            log_message(f"Connection to {url} failed. Retrying... Exception {e}")
 
         # Check in failed, try again
         time.sleep(fail_delay)
@@ -347,8 +336,8 @@ def run_linux_cmd(cmd, ignore_failure=False, print_command=False):
         return output
     except Exception as e:
         print("Linux Command Failed!!!")
-        print("   Command: {}".format(cmd))
-        print("   Error: {}".format(str(e)))
+        print(f"   Command: {cmd}")
+        print(f"   Error: {str(e)}")
         if ignore_failure:
             return "ERROR"
         else:
@@ -365,12 +354,8 @@ def linux_user_exists(username):
 
 # May need to add options for passwords, making home folder, etc... later. For now, no passwd.
 def linux_create_user(username, make_home_folder=False):
-    dash_m = ""
-
-    if make_home_folder:
-        dash_m = "-m"
-
-    cmd = "useradd {} -s /bin/bash {} || true".format(dash_m, username)
+    dash_m = "-m" if make_home_folder else ""
+    cmd = f"useradd {dash_m} -s /bin/bash {username} || true"
     run_linux_cmd(cmd, print_command=True)
 
 def user_is_in_group(username, group):
@@ -385,4 +370,4 @@ def user_is_in_group(username, group):
 
 def add_user_to_group(username, group):
     if not user_is_in_group(username, group):
-        run_linux_cmd("adduser {} {}".format(username, group), print_command=True)
+        run_linux_cmd(f"adduser {username} {group}", print_command=True)

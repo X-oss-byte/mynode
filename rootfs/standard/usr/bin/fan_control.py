@@ -6,19 +6,19 @@ current_fan_speed=0
 def get_temp():
     with open('/sys/class/thermal/thermal_zone0/temp') as f:
         results = f.read()
-    device_temp = int(int(results) / 1000)
-    print("Current temp: {}C".format(device_temp))
+    device_temp = int(results) // 1000
+    print(f"Current temp: {device_temp}C")
     return device_temp
 
 def set_fan_speed(percent):
     global current_fan_speed
 
     if percent != current_fan_speed:
-        print("Setting fan speed: {}%".format(percent))
+        print(f"Setting fan speed: {percent}%")
         fan_speed=int(float(percent) * 2.55)
         current_fan_speed = percent
         with open('/sys/class/hwmon/hwmon0/pwm1', 'w') as f:
-            f.write("{}".format(fan_speed))
+            f.write(f"{fan_speed}")
 
     
 def calculate_fan_setting(temp):
@@ -45,7 +45,7 @@ def main_loop():
             temp = get_temp()
             calculate_fan_setting(temp)
         except Exception as e:
-            print("Exception: {}".format(str(e)))
+            print(f"Exception: {str(e)}")
             set_fan_speed(80)
         finally:
             sleep(10)

@@ -23,7 +23,7 @@ def get_price_diff_24hrs():
             if latest != "N/A" and old != "N/A":
                 return latest - old
     except Exception as e:
-        log_message("ERROR get_price_diff_24hrs: {}".format(str(e)))
+        log_message(f"ERROR get_price_diff_24hrs: {str(e)}")
     return 0.0
 
 def get_price_up_down_flat_24hrs():
@@ -45,15 +45,11 @@ def update_price_info():
             price = data["bpi"]["USD"]["rate_float"]
 
         except Exception as e:
-            log_message("update_price_info EXCEPTION: {}".format(str(e)))
+            log_message(f"update_price_info EXCEPTION: {str(e)}")
             price = "ERR"
-            pass
-
         # Add latest price
         now = int(time.time())
-        d = {}
-        d["time"] = now
-        d["price"] = price
+        d = {"time": now, "price": price}
         price_data.append(d)
         #log_message("UPDATE PRICE {}".format(price))
 

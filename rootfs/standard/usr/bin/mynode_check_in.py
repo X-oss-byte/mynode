@@ -29,15 +29,18 @@ def save_response_data(data):
         with open("/tmp/check_in_response.json", "w") as file:
             json.dump(data, file, indent=4, sort_keys=True)
     except Exception as e:
-        log_message("save_response_data exception: failed to save response - {}".format(str(e)))
+        log_message(
+            f"save_response_data exception: failed to save response - {str(e)}"
+        )
 
 def get_quicksync_enabled():
-    enabled = 1
     if not is_mynode_drive_mounted():
         return -3
-    if os.path.isfile("/mnt/hdd/mynode/settings/quicksync_disabled"):
-        enabled = 0
-    return enabled
+    return (
+        0
+        if os.path.isfile("/mnt/hdd/mynode/settings/quicksync_disabled")
+        else 1
+    )
 
 def check_for_new_mynode_version():
     global latest_version_check_count
@@ -57,18 +60,20 @@ def check_for_new_mynode_version():
     #  5 day(s): 96%             5 day(s): 98%             5 day(s): 99%             5 day(s): 99%
     #  7 day(s): 99.2%           7 day(s): 99.6%           7 day(s): 99.8%           7 day(s): 99.9%
     if latest_version_check_count % 5 == 0 or random.randint(1, 100) <= 40:
-        log_message("Version Check Count ({}) - Checking for new version!".format(latest_version_check_count))
+        log_message(
+            f"Version Check Count ({latest_version_check_count}) - Checking for new version!"
+        )
         os.system("/usr/bin/mynode_get_latest_version.sh &")
     else:
-        log_message("Version Check Count ({}) - Skipping version check".format(latest_version_check_count))
+        log_message(
+            f"Version Check Count ({latest_version_check_count}) - Skipping version check"
+        )
     latest_version_check_count = latest_version_check_count + 1
 
 def on_check_in_error(msg):
     clear_response_data()
     log_message(msg)
-    data = {}
-    data["status"] = "ERROR"
-    data["message"] = msg
+    data = {"status": "ERROR", "message": msg}
     save_response_data(data)
 
 # Checkin every 24 hours
@@ -80,10 +85,10 @@ def check_in(check_for_updates):
 
     # Setup tor proxy
     session = requests.session()
-    session.proxies = {}
-    session.proxies['http'] = 'socks5h://localhost:9050'
-    session.proxies['https'] = 'socks5h://localhost:9050'
-
+    session.proxies = {
+        'http': 'socks5h://localhost:9050',
+        'https': 'socks5h://localhost:9050',
+    }
     # Check In
     fail_count = 0
     check_in_success = False
@@ -112,7 +117,7 @@ def check_in(check_for_updates):
                 "quicksync_enabled": get_quicksync_enabled(),
                 "api_version": 2,
             }
-            
+
             # Use tor for check in unless there have been several tor failures
             r = None
             if (fail_count+1) % 4 == 0:
@@ -120,15 +125,15 @@ def check_in(check_for_updates):
             else:
                 r = session.post(CHECKIN_URL, data=data, timeout=20)
 
-            if r == None:
+            if r is None:
                 on_check_in_error("Check In Failed: (retrying) None")
             elif r.status_code != 200:
-                on_check_in_error("Check In Failed: (retrying) HTTP ERROR {}".format(r.status_code))
-            elif r.status_code == 200:
+                on_check_in_error(f"Check In Failed: (retrying) HTTP ERROR {r.status_code}")
+            else:
                 try:
                     info = json.loads(r.text)
                     save_response_data(info)
-                
+
                     try:
                         if info["status"] == "OK":
                             # Check in was successful!
@@ -138,18 +143,18 @@ def check_in(check_for_updates):
 
                             os.system("rm -f /tmp/check_in_error")
                             check_in_success = True
-                            log_message("Check In Success: {}".format(r.text))
+                            log_message(f"Check In Success: {r.text}")
                         else:
                             mark_product_key_error()
-                            on_check_in_error("Check In Returned Error: {} - {}".format(info["status"], r.text))
+                            on_check_in_error(f'Check In Returned Error: {info["status"]} - {r.text}')
                     except Exception as e:
-                        on_check_in_error("Check In Failed: Error Parsing Response - {} - {}".format(str(e), r.text))
+                        on_check_in_error(
+                            f"Check In Failed: Error Parsing Response - {str(e)} - {r.text}"
+                        )
                 except Exception as e:
-                    on_check_in_error("Check In Failed: Error Parsing JSON - {}".format(str(e)))
-            else:
-                on_check_in_error("Check In Failed: Unknown")
+                    on_check_in_error(f"Check In Failed: Error Parsing JSON - {str(e)}")
         except Exception as e:
-            on_check_in_error("Check In Failed: (retrying) Exception {}".format(e))
+            on_check_in_error(f"Check In Failed: (retrying) Exception {e}")
         finally:
             if not check_in_success:
                 # Check in failed, try again later
@@ -172,13 +177,12 @@ if __name__ == "__main__":
     delay = args.delay
     interval = 60*60*args.interval
     while True:
-        print("Sleeping {} seconds...".format(delay))
+        print(f"Sleeping {delay} seconds...")
         time.sleep(delay)
 
         check_in(args.check_for_updates)
 
         if args.interval == 0:
             break
-        else:
-            print("Sleeping {} seconds...".format(interval - delay))
-            time.sleep(interval - delay)
+        print(f"Sleeping {interval - delay} seconds...")
+        time.sleep(interval - delay)

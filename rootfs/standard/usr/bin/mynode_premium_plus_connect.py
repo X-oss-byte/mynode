@@ -27,11 +27,9 @@ set_logger(log)
 ## Get info for uploading
 ##############################################################
 def get_premium_plus_device_info():
-    info = {}
     settings = get_premium_plus_settings()
 
-    # Basic Info
-    info["serial"] = get_device_serial()
+    info = {"serial": get_device_serial()}
     info["device_type"] = get_device_type()
     info["device_arch"] = get_device_arch()
     info["debian_version"] = get_debian_version()
@@ -51,22 +49,22 @@ def get_premium_plus_device_info():
     return info
 
 def get_premium_plus_bitcoin_info():
-    info = {}
     settings = get_premium_plus_settings()
 
-    if settings['sync_bitcoin_and_lightning']:
-        #log_message("BITCOIN " + str(get_bitcoin_json_cache()))
-        info = get_bitcoin_json_cache()
-    return info
+    return (
+        get_bitcoin_json_cache()
+        if settings['sync_bitcoin_and_lightning']
+        else {}
+    )
 
 def get_premium_plus_lightning_info():
-    info = {}
     settings = get_premium_plus_settings()
 
-    if settings['sync_bitcoin_and_lightning']:
-        #log_message("LIGHTNING " + str(get_lightning_json_cache()))
-        info = get_lightning_json_cache()
-    return info
+    return (
+        get_lightning_json_cache()
+        if settings['sync_bitcoin_and_lightning']
+        else {}
+    )
 
 ##############################################################
 ## Successful connection handlers for various features
@@ -82,7 +80,7 @@ def connect_success_handler_watchtower(connect_response_data):
             output = run_lncli_command("lncli wtclient towers")
             info = json.loads(output)
             towers = info["towers"]
-            
+
             found_watchtower = False
             for t in towers:
                 #log_message("EXISTING TOWER: {} active={}".format(t["pubkey"], t["active_session_candidate"]))
@@ -90,28 +88,25 @@ def connect_success_handler_watchtower(connect_response_data):
                     if settings["watchtower"]:
                         log_message("Found Premium+ Tower")
                     else:
-                        log_message("Removing Premium+ Tower {}".format(pubkey))
-                        run_lncli_command("lncli wtclient remove {}".format(pubkey))
+                        log_message(f"Removing Premium+ Tower {pubkey}")
+                        run_lncli_command(f"lncli wtclient remove {pubkey}")
                     found_watchtower = True
             if not found_watchtower:
-                log_message("Adding Premium+ Tower {}".format(w))
-                run_lncli_command("lncli wtclient add {}".format(w))
+                log_message(f"Adding Premium+ Tower {w}")
+                run_lncli_command(f"lncli wtclient add {w}")
     except Exception as e:
-        log_message("connect_success_handler_watchtower exception: {}".format(str(e)))
+        log_message(f"connect_success_handler_watchtower exception: {str(e)}")
 
 def connect_success_handler_public_apps(connect_response_data):
     log_message("Running connect_success_handler_public_apps...")
     try:
         settings = get_premium_plus_settings()
-        if settings["public_apps"]:
-            if "public_apps" in connect_response_data:
-                enable_public_apps(connect_response_data["public_apps"])
-            else:
-                disable_public_apps()
+        if settings["public_apps"] and "public_apps" in connect_response_data:
+            enable_public_apps(connect_response_data["public_apps"])
         else:
             disable_public_apps()
     except Exception as e:
-        log_message("connect_success_handler_public_apps exception: {}".format(str(e)))
+        log_message(f"connect_success_handler_public_apps exception: {str(e)}")
 
 ##############################################################
 ## Handle successful connection
@@ -122,9 +117,9 @@ def on_connect_success(connect_response_data):
             connect_success_handler_watchtower(connect_response_data)
             connect_success_handler_public_apps(connect_response_data)
         except Exception as e:
-            log_message("on_connect_success exception: {}".format(str(e)))
+            log_message(f"on_connect_success exception: {str(e)}")
     except Exception as e:
-        log_message("on_connect_success exception: {}".format(str(e)))
+        log_message(f"on_connect_success exception: {str(e)}")
         return
 
 ##############################################################
@@ -137,7 +132,9 @@ def save_response_data(data):
         with open("/tmp/premium_plus_response.json", "w") as file:
             json.dump(data, file, indent=4, sort_keys=True)
     except Exception as e:
-        log_message("save_response_data exception: failed to save response - {}".format(str(e)))
+        log_message(
+            f"save_response_data exception: failed to save response - {str(e)}"
+        )
 
 ##############################################################
 ## Main Premium+ Connection
@@ -155,10 +152,10 @@ def premium_plus_connect():
         "lightning_info": json.dumps(get_premium_plus_lightning_info()),
         "product_key": get_product_key(),
     }
-    
+
     response = make_tor_request(PREMIUM_PLUS_CONNECT_URL, data)
     update_premium_plus_last_sync_time()
-    if response == None:
+    if response is None:
         clear_response_data()
         set_premium_plus_token_status("CONNECTION_ERROR")
         log_message("Premium+ Connect Error: Connection Failed")
@@ -167,13 +164,13 @@ def premium_plus_connect():
     if response.status_code != 200:
         clear_response_data()
         set_premium_plus_token_status("CONNECTION_ERROR")
-        log_message("Premium+ Connect Error: Status Code {}".format(response.status_code))
+        log_message(f"Premium+ Connect Error: Status Code {response.status_code}")
         return False
 
     try:
         info = json.loads(response.text)
     except Exception as e:
-        log_message("Premium+ Connect Error: Error Parsing JSON - {}".format(str(e)))
+        log_message(f"Premium+ Connect Error: Error Parsing JSON - {str(e)}")
         log_message(response.text)
         return False
 
@@ -189,9 +186,9 @@ def premium_plus_connect():
             log_message(response.text)
             on_connect_success(info)
         else:
-            log_message("Premium+ Connect Error: Status ({})".format(info["status"]))
+            log_message(f'Premium+ Connect Error: Status ({info["status"]})')
     else:
-        log_message("Premium+ Connect Error: Missing Info {}".format(response.text))
+        log_message(f"Premium+ Connect Error: Missing Info {response.text}")
         return False
 
     return True
@@ -218,13 +215,13 @@ if __name__ == "__main__":
 
             # Watch for updates
             log_message("")
-            log_message("Watching for file changes or "+str(update_in_min)+" min...")
+            log_message(f"Watching for file changes or {update_in_min} min...")
             inotify = INotify()
             watch_flags = flags.CREATE | flags.DELETE | flags.MODIFY | flags.DELETE_SELF
             wd = inotify.add_watch('/home/bitcoin/.mynode/', watch_flags)
             for event in inotify.read(timeout=update_ms):
-                log_message("File changed: " + str(event))
+                log_message(f"File changed: {str(event)}")
             log_message("Running connect again")
         except Exception as e:
-            log_message("Error: {}".format(e))
+            log_message(f"Error: {e}")
             time.sleep(60)

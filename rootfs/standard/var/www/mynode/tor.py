@@ -12,9 +12,10 @@ import subprocess
 mynode_tor = Blueprint('mynode_tor',__name__)
 
 def create_v3_service(name, url, port, show_link, guide, force_https=False):
-    service = {}
-    service["service"] = name
-    service["id"] = name.replace(" ","").replace("(","").replace(")","").lower()
+    service = {
+        "service": name,
+        "id": name.replace(" ", "").replace("(", "").replace(")", "").lower(),
+    }
     service["url"] = url
     service["port"] = port
     service["show_link"] = show_link
@@ -23,12 +24,11 @@ def create_v3_service(name, url, port, show_link, guide, force_https=False):
         try:
             if "/" in port:
                 p = port.split("/")[1].strip()
-                service["link"] = "https://"+url+":"+p
+                service["link"] = f"https://{url}:{p}"
+            elif force_https:
+                service["link"] = f"https://{url}:{port}"
             else:
-                if force_https:
-                    service["link"] = "https://"+url+":"+port
-                else:
-                    service["link"] = "http://"+url+":"+port
+                service["link"] = f"http://{url}:{port}"
         except:
             service["link"] = "URL_ERROR"
     service["guide"] = guide
@@ -69,8 +69,9 @@ def page_tor():
     whirlpool_onion_url = get_onion_url_for_service("whirlpool")
 
     # v3 Services
-    v3_services = []
-    v3_services.append(create_v3_service("myNode Web", general_onion_url, "80", True, ""))
+    v3_services = [
+        create_v3_service("myNode Web", general_onion_url, "80", True, "")
+    ]
     v3_services.append(create_v3_service("WebSSH", general_onion_url, "2222 / 2223", True, ""))
     v3_services.append(create_v3_service("LND Hub", lndhub_onion_url, "80 / 443", True, ""))
     v3_services.append(create_v3_service("BTC RPC Explorer", general_onion_url, "3002 / 3003", False, ""))
@@ -94,10 +95,10 @@ def page_tor():
     v3_services.append(create_v3_service("Sphinx Relay", sphinxrelay_onion_url, "53001", True, ""))
 
     add_dynamic_app_v3_services(v3_services)
-    
+
     # App links
     rpc_password = get_bitcoin_rpc_password()
-    fully_noded_link = "btcstandup://mynode:{}@{}:8332?label=myNode%20Tor".format(rpc_password, btc_onion_url)
+    fully_noded_link = f"btcstandup://mynode:{rpc_password}@{btc_onion_url}:8332?label=myNode%20Tor"
 
     # Load page
     templateData = {

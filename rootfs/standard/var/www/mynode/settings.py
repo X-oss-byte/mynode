@@ -496,7 +496,7 @@ def shutdown_device_page():
 @mynode_settings.route("/settings/reindex-blockchain")
 def reindex_blockchain_page():
     check_logged_in()
-    os.system("echo 'BTCARGS=-reindex-chainstate' > "+BITCOIN_ENV_FILE)
+    os.system(f"echo 'BTCARGS=-reindex-chainstate' > {BITCOIN_ENV_FILE}")
     os.system("systemctl restart bitcoin")
     t = Timer(30.0, reset_bitcoin_env_file)
     t.start()
@@ -612,7 +612,7 @@ def format_external_drive_page():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_format_external_drive')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_settings"))
     else:
@@ -631,7 +631,7 @@ def factory_reset_page():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_factory_reset')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_settings"))
     else:
@@ -652,14 +652,14 @@ def change_password_page():
     # Verify current password
     p = pam.pam()
     current = request.form.get('current_password')
-    if current == None or p.authenticate("admin", current) == False:
+    if current is None or p.authenticate("admin", current) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_settings"))
 
     p1 = request.form.get('password1')
     p2 = request.form.get('password2')
 
-    if p1 == None or p2 == None or p1 == "" or p2 == "" or p1 != p2:
+    if p1 is None or p2 is None or p1 == "" or p2 == "" or p1 != p2:
         flash("Passwords did not match or were empty!", category="error")
         return redirect(url_for(".page_settings"))
     else:
@@ -679,8 +679,12 @@ def change_quicksync_rates_page():
     downloadRate = request.form.get('download-rate')
     uploadRate = request.form.get('upload-rate')
 
-    os.system("echo {} > /mnt/hdd/mynode/settings/quicksync_upload_rate".format(uploadRate))
-    os.system("echo {} > /mnt/hdd/mynode/settings/quicksync_background_download_rate".format(downloadRate))
+    os.system(
+        f"echo {uploadRate} > /mnt/hdd/mynode/settings/quicksync_upload_rate"
+    )
+    os.system(
+        f"echo {downloadRate} > /mnt/hdd/mynode/settings/quicksync_background_download_rate"
+    )
     os.system("sync")
     os.system("systemctl restart bandwidth")
 
@@ -716,14 +720,14 @@ def page_lnd_delete_wallet():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_lnd_delete')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_settings"))
 
     check_and_mark_reboot_action("delete_lnd_data")
 
     delete_lnd_data()
-    
+
     # Trigger reboot
     t = Timer(1.0, reboot_device)
     t.start()
@@ -768,11 +772,11 @@ def page_save_network_settings():
 
     network_settings = ["btc_ipv4", "btc_tor", "btc_i2p", "lnd_ipv4", "lnd_tor"]
     for s in network_settings:
-        delete_settings_file(s + "_enabled")
+        delete_settings_file(f"{s}_enabled")
 
     for s in network_settings:
-        if request.form.get(s + "_checkbox"):
-            create_settings_file(s + "_enabled")
+        if request.form.get(f"{s}_checkbox"):
+            create_settings_file(f"{s}_enabled")
 
     # Trigger reboot
     t = Timer(1.0, reboot_device)
@@ -785,24 +789,23 @@ def page_choose_network():
     check_logged_in()
 
     # This page handles the "choose network" page choice during initial setup
-    if not settings_file_exists("btc_network_settings_defaulted"):
-        if request.args.get("network") and request.args.get("network") == "clearnet":
-            create_settings_file("btc_ipv4_enabled")
-            create_settings_file("lnd_ipv4_enabled")
-            create_settings_file("btc_network_settings_defaulted")
-            # Give startup script time to change status so redirect doesn't show network choice again
-            time.sleep(1)
-        elif request.args.get("network") and request.args.get("network") == "tor":
-            create_settings_file("btc_tor_enabled")
-            create_settings_file("lnd_tor_enabled")
-            create_settings_file("btc_network_settings_defaulted")
-            # Give startup script time to change status so redirect doesn't show network choice again
-            time.sleep(1)
-        else:
-            flash("Error: Unknown network choice.", category="error")
-    else:
+    if settings_file_exists("btc_network_settings_defaulted"):
         flash("Error: Network detaults already setup. Use settings page to change networks.", category="error")
 
+    elif request.args.get("network") and request.args.get("network") == "clearnet":
+        create_settings_file("btc_ipv4_enabled")
+        create_settings_file("lnd_ipv4_enabled")
+        create_settings_file("btc_network_settings_defaulted")
+        # Give startup script time to change status so redirect doesn't show network choice again
+        time.sleep(1)
+    elif request.args.get("network") and request.args.get("network") == "tor":
+        create_settings_file("btc_tor_enabled")
+        create_settings_file("lnd_tor_enabled")
+        create_settings_file("btc_network_settings_defaulted")
+        # Give startup script time to change status so redirect doesn't show network choice again
+        time.sleep(1)
+    else:
+        flash("Error: Unknown network choice.", category="error")
     return redirect("/")
 
 @mynode_settings.route("/settings/reset-tor", methods=['POST'])
@@ -810,7 +813,7 @@ def page_reset_tor():
     check_logged_in()
     p = pam.pam()
     pw = request.form.get('password_reset_tor')
-    if pw == None or p.authenticate("admin", pw) == False:
+    if pw is None or p.authenticate("admin", pw) == False:
         flash("Invalid Password", category="error")
         return redirect(url_for(".page_settings"))
     else:
@@ -940,7 +943,7 @@ def uninstall_app_page():
     if not request.args.get("app"):
         flash("No application specified", category="error")
         return redirect("/apps")
-    
+
     # Check application name is valid
     app_name = request.args.get("app")
     if not is_application_valid(app_name):
@@ -951,10 +954,9 @@ def uninstall_app_page():
     uninstall_app(app_name)
 
     flash("Application Uninstalled", category="message")
-    r = request.args.get("return_page")
-    if r:
+    if r := request.args.get("return_page"):
         if r == "marketplace_app":
-            return redirect("/marketplace/{}".format(app_name))
+            return redirect(f"/marketplace/{app_name}")
         elif r == "settings":
             return redirect("/settings")
 
@@ -1034,11 +1036,9 @@ def toggle_quicksync_page():
     # Toggle uploader
     if is_quicksync_enabled():
         t = Timer(1.0, settings_disable_quicksync)
-        t.start()
     else:
         t = Timer(1.0, settings_enable_quicksync)
-        t.start()
-
+    t.start()
     return redirect("/rebooting")
 
 @mynode_settings.route("/settings/toggle-testnet")

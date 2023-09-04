@@ -20,13 +20,12 @@ def premium_plus_page():
     status_text = "UNKNOWN"
     if get_premium_plus_is_connected():
         status_text = "Connected!"
+    elif has_premium_plus_token():
+        status_text = f"Not Connected ({status})"
     else:
-        if has_premium_plus_token():
-            status_text = "Not Connected ({})".format(status)
-        else:
-            status_text = "Please Configure an Access Token"
+        status_text = "Please Configure an Access Token"
 
-    
+
     # Load page
     templateData = {
         "title": "myNode Premium+",
@@ -71,7 +70,7 @@ def premium_plus_clear_token_page():
 def premium_plus_set_token_page():
     check_logged_in()
     token = request.form.get('token')
-    if token == None:
+    if token is None:
         flash("Missing Token", category="error")
         return redirect("/premium-plus")
     save_premium_plus_token(token)
@@ -88,7 +87,7 @@ def premium_plus_toggle_setting_page():
     check_logged_in()
     name = request.args.get('name')
     enabled = request.args.get('enabled')
-    if name == None or enabled == None:
+    if name is None or enabled is None:
         flash("Missing Parameter", category="error")
         return redirect("/premium-plus")
 
@@ -102,7 +101,7 @@ def premium_plus_toggle_setting_page():
     else:
         flash("Unknown Setting", category="error")
         return redirect("/premium-plus")
-    
+
     restart_service("premium_plus_connect")
     restart_service("lnd_backup")
 

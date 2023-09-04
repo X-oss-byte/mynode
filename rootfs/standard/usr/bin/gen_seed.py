@@ -3,18 +3,13 @@ import base64, codecs, json, requests
 import os
 
 def format_seed_numbered(seed):
-	formatted_seed = ""
-	count = 1
-	for word in seed:
-		formatted_seed += "{}: {}\n".format(count, word)
-		count += 1
-
+	formatted_seed = "".join(
+		f"{count}: {word}\n" for count, word in enumerate(seed, start=1)
+	)
 	return formatted_seed.rstrip()
 
 def format_seed_raw(seed):
-	s = ""
-	for word in seed:
-		s += word + " "
+	s = "".join(f"{word} " for word in seed)
 	return s.rstrip()
 
 # This is the main entry point for the program

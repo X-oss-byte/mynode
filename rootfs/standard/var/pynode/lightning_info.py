@@ -44,15 +44,13 @@ LND_REST_PORT = "10080"
 # Functions
 def run_lncli_command(cmd):
     try:
-        base =  "lncli "
-        base += "--lnddir=/mnt/hdd/mynode/lnd "
+        base = "lncli " + "--lnddir=/mnt/hdd/mynode/lnd "
         if is_testnet_enabled():
             base += "--network=testnet "
         cmd = cmd.replace("lncli ", base)
-        output = subprocess.check_output(cmd, shell=True)
-        return output
+        return subprocess.check_output(cmd, shell=True)
     except Exception as e:
-        log_message("ERROR in run_lncli_command: {}".format(str(e)))
+        log_message(f"ERROR in run_lncli_command: {str(e)}")
         return None
 
 def update_lightning_info():
@@ -79,19 +77,19 @@ def update_lightning_info():
 
     # Get latest LN info
     lightning_info = lnd_get("/getinfo")
-    lightning_update_count = lightning_update_count + 1
-
     # Set is LND ready
     if lightning_info != None and "synced_to_chain" in lightning_info and lightning_info['synced_to_chain']:
         lnd_ready = True
-    
+
     # Check for LND de-sync (this can happen unfortunately)
     #   See https://github.com/lightningnetwork/lnd/issues/1909
     #   See https://github.com/bitcoin/bitcoin/pull/14687
     # Hopefully patch comes soon to enable TCP keepalive to prevent this from happening
     if lnd_ready and lightning_info != None and "synced_to_chain" in lightning_info and not lightning_info['synced_to_chain']:
         lightning_desync_count += 1
-        os.system("printf \"%s | LND De-sync!!! Count: {} \\n\" \"$(date)\" >> /tmp/lnd_failures".format(lightning_desync_count))
+        os.system(
+            f'printf \"%s | LND De-sync!!! Count: {lightning_desync_count} \\n\" \"$(date)\" >> /tmp/lnd_failures'
+        )
         if lightning_desync_count >= 8:
             os.system("printf \"%s | De-sync count too high! Retarting LND... \\n\" \"$(date)\" >> /tmp/lnd_failures")
             restart_lnd()
@@ -101,7 +99,9 @@ def update_lightning_info():
     if lnd_ready:
         log_message("update_lightning_info - LND READY")
         if lightning_desync_count > 0:
-            os.system("printf \"%s | De-sync greater than 0 (was {}), but now synced! Setting to 0. \\n\" \"$(date)\" >> /tmp/lnd_failures".format(lightning_desync_count))
+            os.system(
+                f'printf \"%s | De-sync greater than 0 (was {lightning_desync_count}), but now synced! Setting to 0. \\n\" \"$(date)\" >> /tmp/lnd_failures'
+            )
             lightning_desync_count = 0
         log_message("update_lightning_info - GET PEERS, CHANNELS, BALANCE, WALLET")
         lightning_peers = lnd_get("/peers")
@@ -125,6 +125,8 @@ def update_lightning_info():
         log_message("update_lightning_info - GET CLIENT STATS, POLICY")
         lightning_watchtower_client_stats = lnd_get_v2("/watchtower/client/stats")
         lightning_watchtower_client_policy = lnd_get_v2("/watchtower/client/policy")
+
+        lightning_update_count = lightning_update_count + 1
 
         # Poll slower (make sure we gather data early)
         if lightning_update_count < 30 or lightning_update_count % 2 == 0:
@@ -202,8 +204,7 @@ def get_lightning_peers():
     return peers
 
 def get_lightning_node_info(pubkey):
-    nodeinfo = lnd_get("/graph/node/{}".format(pubkey), timeout=2)
-    return nodeinfo
+    return lnd_get(f"/graph/node/{pubkey}", timeout=2)
 
 def get_lightning_peer_alias(pubkey):
     global lightning_peer_aliases
@@ -219,10 +220,7 @@ def get_lightning_peer_alias(pubkey):
 
 def get_lightning_peer_count():
     info = get_lightning_info()
-    num_peers = 0
-    if info != None and "num_peers" in info:
-        num_peers = info['num_peers']
-    return num_peers
+    return info['num_peers'] if info != None and "num_peers" in info else 0
 
 def get_lightning_channels():
     global lightning_channels
@@ -242,10 +240,7 @@ def get_lightning_channels():
 
             channel["status_color"] = "gray"
             if "active" in channel:
-                if channel["active"]:
-                    channel["status_color"] = "green"
-                else:
-                    channel["status_color"] = "yellow"
+                channel["status_color"] = "green" if channel["active"] else "yellow"
             if "capacity" in channel:
                 channel["capacity"] = format_sat_amount(channel["capacity"])
             else:
@@ -277,7 +272,7 @@ def get_lightning_channels():
                 channel["age"] = "{}".format(str(datetime.timedelta(seconds=seconds)))
             else:
                 channel["age"] = "N/A"
-            
+
             channels.append(channel)
     return channels
 
@@ -297,12 +292,13 @@ def get_lightning_balance_info():
     channel_balance_data = get_lightning_channel_balance()
     wallet_balance_data = get_lightning_wallet_balance()
 
-    balance_data = {}
-    balance_data["channel_balance"] = "N/A"
-    balance_data["channel_pending"] = "N/A"
-    balance_data["wallet_balance"] = "N/A"
-    balance_data["wallet_pending"] = "N/A"
-    balance_data["total_balance"] = "N/A"
+    balance_data = {
+        "channel_balance": "N/A",
+        "channel_pending": "N/A",
+        "wallet_balance": "N/A",
+        "wallet_pending": "N/A",
+        "total_balance": "N/A",
+    }
     channel_num = -1
     wallet_num = -1
 
@@ -312,7 +308,7 @@ def get_lightning_balance_info():
         channel_num = int(channel_balance_data["balance"])
     if channel_balance_data != None and "pending_open_balance" in channel_balance_data:
         balance_data["channel_pending"] = format_sat_amount( channel_balance_data["pending_open_balance"] )
-    
+
     wallet_balance_data = get_lightning_wallet_balance()
     if wallet_balance_data != None and "confirmed_balance" in wallet_balance_data:
         balance_data["wallet_balance"] = format_sat_amount( wallet_balance_data["confirmed_balance"] )
@@ -408,11 +404,11 @@ def get_lightning_payments_and_invoices():
     invoices = get_lightning_invoices()
     txs = []
 
-    if payments == None and invoices == None:
+    if payments is None and invoices is None:
         return []
-    elif payments == None and invoices != None:
+    elif payments is None:
         return invoices
-    elif payments != None and invoices == None:
+    elif invoices is None:
         return payments
     elif len(payments) == 0 and len(invoices) == 0:
         return []
@@ -469,18 +465,15 @@ def get_lightning_watchtower_server_info():
 
 def get_lightning_watchtower_client_towers():
     global lightning_watchtower_client_towers
-    towers = copy.deepcopy(lightning_watchtower_client_towers)
-    return towers
+    return copy.deepcopy(lightning_watchtower_client_towers)
 
 def get_lightning_watchtower_client_stats():
     global lightning_watchtower_client_stats
-    stats = copy.deepcopy(lightning_watchtower_client_stats)
-    return stats
+    return copy.deepcopy(lightning_watchtower_client_stats)
 
 def get_lightning_watchtower_client_policy():
     global lightning_watchtower_client_policy
-    policy = copy.deepcopy(lightning_watchtower_client_policy)
-    return policy
+    return copy.deepcopy(lightning_watchtower_client_policy)
 
 def is_lnd_ready():
     global lnd_ready
@@ -490,9 +483,15 @@ def lnd_get(path, timeout=10, params={}):
     try:
         macaroon = get_macaroon()
         headers = {"Grpc-Metadata-macaroon":macaroon}
-        r = requests.get("https://localhost:"+LND_REST_PORT+"/v1"+path, verify=TLS_CERT_FILE,headers=headers, params=params, timeout=timeout)
+        r = requests.get(
+            f"https://localhost:{LND_REST_PORT}/v1{path}",
+            verify=TLS_CERT_FILE,
+            headers=headers,
+            params=params,
+            timeout=timeout,
+        )
     except Exception as e:
-        log_message("ERROR in lnd_get: "+str(e))
+        log_message(f"ERROR in lnd_get: {str(e)}")
         return {"error": str(e)}
     return r.json()
 
@@ -500,15 +499,21 @@ def lnd_get_v2(path, timeout=10):
     try:
         macaroon = get_macaroon()
         headers = {'Grpc-Metadata-macaroon': macaroon}
-        r = requests.get("https://localhost:"+LND_REST_PORT+"/v2"+path, verify=TLS_CERT_FILE, headers=headers, timeout=timeout)
+        r = requests.get(
+            f"https://localhost:{LND_REST_PORT}/v2{path}",
+            verify=TLS_CERT_FILE,
+            headers=headers,
+            timeout=timeout,
+        )
     except Exception as e:
-        log_message("ERROR in lnd_get_v2: "+str(e))
+        log_message(f"ERROR in lnd_get_v2: {str(e)}")
         return {"error": str(e)}
     return r.json()
 
 def gen_new_wallet_seed():
-    seed = to_string(subprocess.check_output("python3 /usr/bin/gen_seed.py", shell=True))
-    return seed
+    return to_string(
+        subprocess.check_output("python3 /usr/bin/gen_seed.py", shell=True)
+    )
 
 def get_lnd_lit_password():
     return to_string( get_file_contents("/mnt/hdd/mynode/settings/.litpw") )
@@ -536,7 +541,11 @@ def get_lightning_macaroon_file():
     return "/mnt/hdd/mynode/lnd/data/chain/bitcoin/mainnet/admin.macaroon"
 
 def get_macaroon():
-    m = to_string(subprocess.check_output("xxd -ps -u -c 1000 " + get_lightning_macaroon_file(), shell=True))
+    m = to_string(
+        subprocess.check_output(
+            f"xxd -ps -u -c 1000 {get_lightning_macaroon_file()}", shell=True
+        )
+    )
     return m.strip()
 
 def lnd_wallet_exists():
@@ -558,10 +567,12 @@ def is_lnd_logged_in():
     try:
         macaroon = get_macaroon()
         headers = {"Grpc-Metadata-macaroon":macaroon}
-        r = requests.get("https://localhost:"+LND_REST_PORT+"/v1/getinfo", verify=TLS_CERT_FILE,headers=headers)
-        if r.status_code == 200 and r.json():
-            return True
-        return False
+        r = requests.get(
+            f"https://localhost:{LND_REST_PORT}/v1/getinfo",
+            verify=TLS_CERT_FILE,
+            headers=headers,
+        )
+        return bool(r.status_code == 200 and r.json())
     except:
         return False
 
@@ -574,12 +585,16 @@ def lnd_channel_backup_exists():
     return os.path.isfile( get_lnd_channel_backup_file() )
 
 def lnd_get_channel_db_size():
-    path = "mainnet"
-    if is_testnet_enabled():
-        path = "testnet"
+    path = "testnet" if is_testnet_enabled() else "mainnet"
     size = "???"
     try:
-        size = to_string(subprocess.check_output("ls -lsah /mnt/hdd/mynode/lnd/data/graph/"+path+"/channel.db | awk '{print $6}'", shell=True))
+        size = to_string(
+            subprocess.check_output(
+                f"ls -lsah /mnt/hdd/mynode/lnd/data/graph/{path}"
+                + "/channel.db | awk '{print $6}'",
+                shell=True,
+            )
+        )
     except:
         size = "ERR"
     return size
@@ -625,10 +640,7 @@ def get_lnd_status():
                 return "Config Error"
 
         # Check if no wallet file (log may have been rotated out, so can't get more accurate message)
-        if not lnd_wallet_exists():
-            return "Please create wallet..."
-
-        return "Waiting..."
+        return "Please create wallet..." if not lnd_wallet_exists() else "Waiting..."
     except:
         return "Status Error"
 
@@ -639,40 +651,37 @@ def get_lnd_status_color():
     #if not lnd_wallet_exists():
     #    # This hides the restart /login attempt LND does from the GUI
     #    return "green"
-    
+
     lnd_status_code = get_service_status_code("lnd")
     if lnd_status_code != 0:
-        lnd_status_color = "red"
         lnd_status = get_lnd_status()
-        if lnd_status == "Logging in...":
-            lnd_status_color = "yellow"
-        return lnd_status_color
+        return "yellow" if lnd_status == "Logging in..." else "red"
     return "green"
 
 def get_lnd_version():
     global lnd_version
-    if lnd_version == None:
+    if lnd_version is None:
         lnd_version = to_string(subprocess.check_output("lnd --version | egrep -o '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1", shell=True))
-    return "v{}".format(lnd_version)
+    return f"v{lnd_version}"
 
 def get_loop_version():
     global loop_version
-    if loop_version == None:
+    if loop_version is None:
         loop_version = to_string(subprocess.check_output("loopd --version | egrep -o '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1", shell=True))
-    return "v{}".format(loop_version)
+    return f"v{loop_version}"
 
 def get_pool_version():
     global pool_version
-    if pool_version == None:
+    if pool_version is None:
         pool_version = to_string(subprocess.check_output("poold --version | egrep -o '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1", shell=True))
-    return "v{}".format(pool_version)
+    return f"v{pool_version}"
 
 def get_lit_version():
     global lit_version
-    if lit_version == None:
+    if lit_version is None:
         #lit_version = to_string(subprocess.check_output("litd --version | egrep -o '[0-9]+\\.[0-9]+\\.[0-9]+' | head -n 1", shell=True))
         lit_version = "TODO"
-    return "v{}".format(lit_version)
+    return f"v{lit_version}"
 
 def get_default_lnd_config():
     try:
@@ -758,8 +767,7 @@ def disable_watchtower_client():
 # Only call from www process which has data
 def update_lightning_json_cache():
     global LIGHTNING_CACHE_FILE
-    lightning_data = {}
-    lightning_data["info"] = get_lightning_info()
+    lightning_data = {"info": get_lightning_info()}
     lightning_data["peers"] = get_lightning_peers()
     lightning_data["channels"] = get_lightning_channels()
     lightning_data["balances"] = get_lightning_balance_info()

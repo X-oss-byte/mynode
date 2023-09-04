@@ -22,27 +22,28 @@ mynode_applications = None
 
 # Utility functions
 def reinstall_app(app):
-    if not is_upgrade_running():
-        mark_upgrade_started()
+    if is_upgrade_running():
+        return
+    mark_upgrade_started()
 
-        # Clear app data
-        clear_application_cache()
+    # Clear app data
+    clear_application_cache()
 
-        touch("/tmp/skip_base_upgrades")
+    touch("/tmp/skip_base_upgrades")
 
-        # Reinstall
-        os.system("mkdir -p /home/admin/upgrade_logs")
-        file1 = "/home/admin/upgrade_logs/reinstall_{}.txt".format(app)
-        file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
-        cmd = "/usr/bin/mynode_reinstall_app.sh {} 2>&1 | tee {} {}".format(app,file1, file2)
-        subprocess.call(cmd, shell=True)
-        
-        # Sync
-        os.system("sync")
-        time.sleep(1)
+    # Reinstall
+    os.system("mkdir -p /home/admin/upgrade_logs")
+    file1 = f"/home/admin/upgrade_logs/reinstall_{app}.txt"
+    file2 = "/home/admin/upgrade_logs/upgrade_log_latest.txt"
+    cmd = f"/usr/bin/mynode_reinstall_app.sh {app} 2>&1 | tee {file1} {file2}"
+    subprocess.call(cmd, shell=True)
 
-        # Reboot
-        reboot_device()
+    # Sync
+    os.system("sync")
+    time.sleep(1)
+
+    # Reboot
+    reboot_device()
 
 def uninstall_app(app):
     # Make sure app is disabled
@@ -53,11 +54,11 @@ def uninstall_app(app):
 
     # Uninstall App
     os.system("mkdir -p /home/admin/upgrade_logs")
-    file1 = "/home/admin/upgrade_logs/uninstall_{}.txt".format(app)
+    file1 = f"/home/admin/upgrade_logs/uninstall_{app}.txt"
     file2 = "/home/admin/upgrade_logs/uninstall_log_latest.txt"
-    cmd = "/usr/bin/mynode_uninstall_app.sh {} 2>&1 | tee {} {}".format(app,file1, file2)
+    cmd = f"/usr/bin/mynode_uninstall_app.sh {app} 2>&1 | tee {file1} {file2}"
     subprocess.call(cmd, shell=True)
-    
+
     # Sync
     os.system("sync")
 
@@ -72,12 +73,12 @@ def remove_app(app):
     clear_application_cache()
 
     # Remove App
-    os.system("rm -rf /usr/share/mynode_apps/{}".format(app))
+    os.system(f"rm -rf /usr/share/mynode_apps/{app}")
     os.system("sync")
 
 def is_installed(short_name):
-    filename1 = "/home/bitcoin/.mynode/install_"+short_name
-    filename2 = "/mnt/hdd/mynode/settings/install_"+short_name
+    filename1 = f"/home/bitcoin/.mynode/install_{short_name}"
+    filename2 = f"/mnt/hdd/mynode/settings/install_{short_name}"
     if os.path.isfile(filename1):
         return True
     elif os.path.isfile(filename2):
@@ -85,10 +86,10 @@ def is_installed(short_name):
     return False
 
 def mark_app_installed(short_name):
-    install_marker_1 = "/home/bitcoin/.mynode/install_"+short_name
-    install_marker_2 = "/mnt/hdd/mynode/settings/install_"+short_name
-    latest_version_1 = "/home/bitcoin/.mynode/"+short_name+"_version_latest"
-    latest_version_2 = "/mnt/hdd/mynode/settings/"+short_name+"_version_latest"
+    install_marker_1 = f"/home/bitcoin/.mynode/install_{short_name}"
+    install_marker_2 = f"/mnt/hdd/mynode/settings/install_{short_name}"
+    latest_version_1 = f"/home/bitcoin/.mynode/{short_name}_version_latest"
+    latest_version_2 = f"/mnt/hdd/mynode/settings/{short_name}_version_latest"
     # Check the latest version location
     if os.path.isfile(latest_version_1):
         touch(install_marker_1)
@@ -99,15 +100,15 @@ def mark_app_installed(short_name):
         touch(install_marker_1)
 
 def clear_app_installed(short_name):
-    install_marker_1 = "/home/bitcoin/.mynode/install_"+short_name
-    install_marker_2 = "/mnt/hdd/mynode/settings/install_"+short_name
+    install_marker_1 = f"/home/bitcoin/.mynode/install_{short_name}"
+    install_marker_2 = f"/mnt/hdd/mynode/settings/install_{short_name}"
     delete_file(install_marker_1)
     delete_file(install_marker_2)
 
 def get_app_current_version_from_file(short_name):
     version = "unknown"
-    filename1 = "/home/bitcoin/.mynode/"+short_name+"_version"
-    filename2 = "/mnt/hdd/mynode/settings/"+short_name+"_version"
+    filename1 = f"/home/bitcoin/.mynode/{short_name}_version"
+    filename2 = f"/mnt/hdd/mynode/settings/{short_name}_version"
     if os.path.isfile(filename1):
         version = get_file_contents(filename1)
     elif os.path.isfile(filename2):
@@ -116,7 +117,7 @@ def get_app_current_version_from_file(short_name):
         version = "not installed"
 
     # For versions that are hashes, shorten them
-    version = version[0:16]
+    version = version[:16]
 
     return to_string(version)
 
@@ -125,39 +126,37 @@ def get_app_latest_version_from_file(app):
     version = "unknown"
 
     # Check for custom version
-    filename1_custom = "/home/bitcoin/.mynode/"+short_name+"_version_latest_custom"
-    filename2_custom = "/mnt/hdd/mynode/settings/"+short_name+"_version_latest_custom"
+    filename1_custom = f"/home/bitcoin/.mynode/{short_name}_version_latest_custom"
+    filename2_custom = (
+        f"/mnt/hdd/mynode/settings/{short_name}_version_latest_custom"
+    )
     if os.path.isfile(filename1_custom):
         version = get_file_contents(filename1_custom)
     elif os.path.isfile(filename2_custom):
         version = get_file_contents(filename2_custom)
     else:
         # Check for official version in file
-        filename1 = "/home/bitcoin/.mynode/"+short_name+"_version_latest"
-        filename2 = "/mnt/hdd/mynode/settings/"+short_name+"_version_latest"
+        filename1 = f"/home/bitcoin/.mynode/{short_name}_version_latest"
+        filename2 = f"/mnt/hdd/mynode/settings/{short_name}_version_latest"
         if os.path.isfile(filename1):
             version = get_file_contents(filename1)
         elif os.path.isfile(filename2):
             version = get_file_contents(filename2)
         else:
             # Check for official version in JSON
-            if "latest_version" in app:
-                version = app["latest_version"]
-            else:
-                version = "error"
-
+            version = app["latest_version"] if "latest_version" in app else "error"
     # For versions that are hashes, shorten them
-    version = version[0:16]
+    version = version[:16]
 
     return to_string(version)
 
 def get_app_screenshots(short_name):
     screenshots = []
-    screenshot_folder = "/var/www/mynode/static/images/screenshots/{}/".format(short_name)
+    screenshot_folder = f"/var/www/mynode/static/images/screenshots/{short_name}/"
     if os.path.isdir(screenshot_folder):
-        for s in os.listdir(screenshot_folder):
-            if s.endswith(".png"):
-                screenshots.append(s)
+        screenshots.extend(
+            s for s in os.listdir(screenshot_folder) if s.endswith(".png")
+        )
         return sorted(screenshots)
     return screenshots
 

@@ -21,14 +21,17 @@ def usb_extras_opendime_init_page():
         if str(d["id"]) == str(id) and int(d["id"]) == int(id) and d["device_type"] == "opendime" and d["state"] == "new":
             found = True
             path = "/mnt/usb_extras/" + d["folder_name"] + "/entro.bin"
-            os.system("dd if=/dev/urandom of={} bs=1024 count=256".format(path))
+            os.system(f"dd if=/dev/urandom of={path} bs=1024 count=256")
             os.system("sync")
             time.sleep(3)
             os.system("systemctl restart usb_extras")
             break
 
     if found == False:
-        flash("Opendime Device Not Found {} {} {}".format(id, devices[0]["id"], devices[0]["device_type"]), category="error")
+        flash(
+            f'Opendime Device Not Found {id} {devices[0]["id"]} {devices[0]["device_type"]}',
+            category="error",
+        )
     else:
         flash("Opendime Initialized", category="message")
 

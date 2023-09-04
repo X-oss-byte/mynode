@@ -17,16 +17,14 @@ def set_args(a):
     args = a
 
 def is_uas_forced():
-    if os.path.isfile("/home/bitcoin/.mynode/uas_usb_enabled") or \
-       os.path.isfile("/mnt/hdd/mynode/settings/uas_usb_enabled"):
-        return True
-    return False
+    return bool(
+        os.path.isfile("/home/bitcoin/.mynode/uas_usb_enabled")
+        or os.path.isfile("/mnt/hdd/mynode/settings/uas_usb_enabled")
+    )
 
 def device_checks_uas():
     d = get_device_type()
-    if (d == "raspi4" or d == "rockpi4"):
-        return True
-    return False
+    return d in ["raspi4", "rockpi4"]
 
 def has_quirks_setting():
     d = get_device_type()
@@ -47,13 +45,12 @@ def get_current_usb_quirks():
     quirks = []
     try:
         if d == "raspi4":
-            if os.path.isfile("/boot/cmdline.txt"):
-                content = run_linux_cmd("head -n 1 /boot/cmdline.txt")
-                m = re.search("usb-storage.quirks=(.+)", content)
-                quirks_string = m.group(1)
-                quirks = quirks_string.split(",")
-            else:
+            if not os.path.isfile("/boot/cmdline.txt"):
                 raise Exception("Missing file: /boot/cmdline.txt")
+            content = run_linux_cmd("head -n 1 /boot/cmdline.txt")
+            m = re.search("usb-storage.quirks=(.+)", content)
+            quirks_string = m.group(1)
+            quirks = quirks_string.split(",")
         elif d == "rockpi4":
             if os.path.isfile("/boot/armbianEnv.txt"):
                 content = run_linux_cmd("cat /boot/armbianEnv.txt")
@@ -65,7 +62,7 @@ def get_current_usb_quirks():
         else:
             raise Exception("Unexpected Device Type")
     except Exception as e:
-        log_message("Exception in get_current_usb_quirks: {}".format(str(e)))
+        log_message(f"Exception in get_current_usb_quirks: {str(e)}")
     return quirks
 
 def generate_quirks_string(quirks_list):
@@ -79,14 +76,14 @@ def generate_quirks_string(quirks_list):
         raise Exception("Unexpected Device Type")
 
     for q in quirks_list:
-        quirks_string += q + ","
+        quirks_string += f"{q},"
     quirks_string = quirks_string.rstrip(",")
     return quirks_string
 
 def update_usb_quirks(quirks_list):
     d = get_device_type()
     quirks_string = generate_quirks_string(quirks_list)
-    log_message("Updating Quirks: {}".format(quirks_string))
+    log_message(f"Updating Quirks: {quirks_string}")
     if has_quirks_setting():
         # Update Quirks
         if d == "raspi4":
@@ -96,28 +93,25 @@ def update_usb_quirks(quirks_list):
             run_linux_cmd("mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr")
         else:
             raise Exception("Unexpected Device Type")
+    elif d == "raspi4":
+        contents = run_linux_cmd("head -n 1 /boot/cmdline.txt").strip()
+        contents += f" {quirks_string}"
+        set_file_contents("/boot/cmdline.txt", contents)
+    elif d == "rockpi4":
+        # Rock pi 4 normally never has this missing, if so, need updates
+        run_linux_cmd("sed -i \"s/usbstoragequirks=.*/"+quirks_string+"/g\" /boot/armbianEnv.txt")
+        run_linux_cmd("mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr")
     else:
-        # Add Quirks
-        if d == "raspi4":
-            contents = run_linux_cmd("head -n 1 /boot/cmdline.txt").strip()
-            contents += " " + quirks_string
-            set_file_contents("/boot/cmdline.txt", contents)
-        elif d == "rockpi4":
-            # Rock pi 4 normally never has this missing, if so, need updates
-            run_linux_cmd("sed -i \"s/usbstoragequirks=.*/"+quirks_string+"/g\" /boot/armbianEnv.txt")
-            run_linux_cmd("mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr")
-        else:
-            raise Exception("Unexpected Device Type")
+        raise Exception("Unexpected Device Type")
 
 def remove_usb_quirks():
-    if has_quirks_setting():
-        current = get_current_usb_quirks()
-        if current != ["none"]:
-            update_usb_quirks(["none"])
-            reboot()
-    else:
+    if not has_quirks_setting():
         # No quirks setting, nothing to do
         return
+    current = get_current_usb_quirks()
+    if current != ["none"]:
+        update_usb_quirks(["none"])
+        reboot()
 
 def get_quirks_from_uas_devices():
     quirks = []
@@ -133,18 +127,13 @@ def get_quirks_from_uas_devices():
                     bus = m.group(1)
                     dev = m.group(2)
                     id = m.group(3)
-                    quirks.append(id+":u")
+                    quirks.append(f"{id}:u")
             except Exception as e:
-                log_message("Unable to scan USB device: {} ({})".format(line, e))
+                log_message(f"Unable to scan USB device: {line} ({e})")
     return quirks
 
 def get_required_usb_quirks():
-    required_quirks = []
-
-    # Add known devices
-    required_quirks.append("174c:55aa:u") # ASMedia Technology Inc.
-    required_quirks.append("152d:1561:u") # JMicron Technology Corp.
-    required_quirks.append("152d:0578:u") # JMicron Technology Corp.
+    required_quirks = ["174c:55aa:u", "152d:1561:u", "152d:0578:u"]
 
     # Add any devices currently found as UAS
     required_quirks += get_quirks_from_uas_devices()
@@ -180,9 +169,9 @@ def main():
         return
 
     current_quirks = get_current_usb_quirks()
-    print("Current Quirks:  {}".format(current_quirks))
+    print(f"Current Quirks:  {current_quirks}")
     required_quirks = get_required_usb_quirks()
-    print("Required Quirks: {}".format(required_quirks))
+    print(f"Required Quirks: {required_quirks}")
     updated_quirks = current_quirks.copy()
     for r in required_quirks:
         if r not in current_quirks:
@@ -205,4 +194,4 @@ if __name__ == "__main__":
 
         main()
     except Exception as e:
-        log_message("Exception: {}".format(str(e)))
+        log_message(f"Exception: {str(e)}")

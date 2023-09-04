@@ -56,8 +56,8 @@ def marketplace_add_app_page():
     # Submit was hit
     add_app_tmp_path = "/tmp/add_app/"
     add_app_tarball_path = "/tmp/add_app/app.tar.gz"
-    run_linux_cmd("rm -rf " + add_app_tmp_path)
-    run_linux_cmd("mkdir " + add_app_tmp_path)
+    run_linux_cmd(f"rm -rf {add_app_tmp_path}")
+    run_linux_cmd(f"mkdir {add_app_tmp_path}")
 
     if 'app_tarball' in request.files and request.files['app_tarball'] != "":
         f = request.files['app_tarball']
@@ -71,9 +71,11 @@ def marketplace_add_app_page():
     try:
         # Get basic app info
         app_short_name = "unknown_app_name"
-        run_linux_cmd("tar --exclude='.[^/]*' -xf {} -C {}".format(add_app_tarball_path, add_app_tmp_path))
+        run_linux_cmd(
+            f"tar --exclude='.[^/]*' -xf {add_app_tarball_path} -C {add_app_tmp_path}"
+        )
         for f in os.listdir(add_app_tmp_path):
-            if os.path.isdir(add_app_tmp_path + "/" + f):
+            if os.path.isdir(f"{add_app_tmp_path}/{f}"):
                 app_short_name = f
         if app_short_name == "app_short_name":
             flash("Error Finding App Name".format(str(e)), category="error")
@@ -81,24 +83,26 @@ def marketplace_add_app_page():
 
         # Load app info
         app_info = {}
-        app_json_path = "/tmp/add_app/{}/{}.json".format(app_short_name, app_short_name)
+        app_json_path = f"/tmp/add_app/{app_short_name}/{app_short_name}.json"
         with open(app_json_path, 'r') as fp:
             app_info = json.load(fp)
 
         # Copy app to app folder
-        run_linux_cmd("rm -rf /usr/share/mynode_apps/{}".format(app_short_name))
-        run_linux_cmd("cp -r /tmp/add_app/{} /usr/share/mynode_apps/".format(app_short_name))
-        run_linux_cmd("touch /usr/share/mynode_apps/{}/is_manually_added".format(app_short_name))
+        run_linux_cmd(f"rm -rf /usr/share/mynode_apps/{app_short_name}")
+        run_linux_cmd(f"cp -r /tmp/add_app/{app_short_name} /usr/share/mynode_apps/")
+        run_linux_cmd(
+            f"touch /usr/share/mynode_apps/{app_short_name}/is_manually_added"
+        )
         run_linux_cmd("sync")
 
         # Init new/updated app
         init_dynamic_apps(app_short_name)
 
         # Redirect to app page?
-        flash("{} Added!".format(app_info["name"]), category="message")
-        return redirect("/marketplace/{}".format(app_short_name))
+        flash(f'{app_info["name"]} Added!', category="message")
+        return redirect(f"/marketplace/{app_short_name}")
     except Exception as e:
-        flash("Error Adding Application! {}".format(str(e)), category="error")
+        flash(f"Error Adding Application! {str(e)}", category="error")
         return redirect("/marketplace/add_app")
 
 @mynode_marketplace.route("/marketplace/<app_name>")
@@ -106,7 +110,7 @@ def marketplace_app_page(app_name):
     check_logged_in()
 
     app = get_application(app_name)
-    if not is_application_valid(app_name) or app == None:
+    if not is_application_valid(app_name) or app is None:
         flash("Application is invalid", category="error")
         return redirect("/marketplace")
 
